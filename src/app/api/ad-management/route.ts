@@ -8,12 +8,12 @@ const unit=z.object({id:z.string().min(1).max(80),name:z.string().min(1).max(100
 const placement=z.object({key,enabled:z.boolean(),unitRef:z.string().max(80),fallbackRef:z.string().max(80)});
 const countryRule=z.object({id:z.string().min(1).max(80),country:z.string().regex(/^[A-Z]{2}$/),placement:key,unitRef:z.string().max(80),enabled:z.boolean()});
 const providerSettings=z.object({enabled:z.boolean(),appId:z.string().max(500)});
-export const schema=z.object({version:z.literal(2),adsEnabled:z.boolean(),providers:z.object({ADX:providerSettings,META:providerSettings,ADFOX:providerSettings}),units:z.array(unit).max(200),placements:z.array(placement).length(5),countryRules:z.array(countryRule).max(300),appOpenCooldownMinutes:z.number().int().min(0).max(1440),rewardedUnlockEnabled:z.boolean()});
-export type AdConfig=z.infer<typeof schema>;
+const schema=z.object({version:z.literal(2),adsEnabled:z.boolean(),providers:z.object({ADX:providerSettings,META:providerSettings,ADFOX:providerSettings}),units:z.array(unit).max(200),placements:z.array(placement).length(5),countryRules:z.array(countryRule).max(300),appOpenCooldownMinutes:z.number().int().min(0).max(1440),rewardedUnlockEnabled:z.boolean()});
+type AdConfig=z.infer<typeof schema>;
 const keys=['app_open','home_banner','usage_banner','region_native','rewarded_unlock'] as const;
 const formats:Record<typeof keys[number],string>={app_open:'APP_OPEN',home_banner:'BANNER',usage_banner:'BANNER',region_native:'NATIVE',rewarded_unlock:'REWARDED'};
-export const defaults:AdConfig={version:2,adsEnabled:true,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:keys.map(key=>({key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
-export function validateConfig(c:AdConfig){const units=new Map(c.units.map(u=>[u.id,u]));if(units.size!==c.units.length)return 'Duplicate ad unit IDs';if(new Set(c.placements.map(p=>p.key)).size!==5||keys.some(k=>!c.placements.some(p=>p.key===k)))return 'All five placements must be present';
+const defaults:AdConfig={version:2,adsEnabled:true,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:keys.map(key=>({key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
+function validateConfig(c:AdConfig){const units=new Map(c.units.map(u=>[u.id,u]));if(units.size!==c.units.length)return 'Duplicate ad unit IDs';if(new Set(c.placements.map(p=>p.key)).size!==5||keys.some(k=>!c.placements.some(p=>p.key===k)))return 'All five placements must be present';
 for(const p of c.placements){for(const id of [p.unitRef,p.fallbackRef]){if(id&&(!units.has(id)||units.get(id)?.format!==formats[p.key]))return 'Placement '+p.key+' must reference a matching-format unit'}if(p.unitRef&&p.unitRef===p.fallbackRef)return 'Primary and fallback units must differ'}
 if(new Set(c.countryRules.map(r=>r.country+':'+r.placement)).size!==c.countryRules.length)return 'Duplicate country rules';
 for(const r of c.countryRules){if(r.unitRef&&(!units.has(r.unitRef)||units.get(r.unitRef)?.format!==formats[r.placement]))return 'Country rule must reference a matching-format unit'}
