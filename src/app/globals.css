@@ -1,0 +1,2 @@
+@import "tailwindcss";
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f7f8fa;color:#172033;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.input{width:100%;border:1px solid #e1e6ef;background:white;border-radius:10px;padding:12px;outline:0}.input:focus{border-color:#77787d;box-shadow:0 0 0 3px #77787d22}.card{background:white;border:1px solid #e8ebf0;border-radius:16px;box-shadow:0 8px 32px #1d294008}.muted{color:#7b8497}
