@@ -6,10 +6,9 @@
    - `ADMIN_USERNAME` (e.g. admin)
    - `ADMIN_PASSWORD` (at least 12 characters, strong and unique)
    - `AUTH_SECRET` (at least 32 random characters)
-   - `VPN_PROFILE_ENCRYPTION_KEY` (64 random hexadecimal characters)
-3. **Do not supply DATABASE_URL.** The stack creates PostgreSQL, generates and persists a random database password, constructs the private connection string inside the app container, and initializes Prisma tables automatically on startup.
+3. **Do not supply DATABASE_URL.** The stack creates PostgreSQL, generates and persists random database and VPN profile encryption keys, constructs the private connection string inside the app container, and initializes Prisma tables automatically on startup.
 4. Route the public domain to the **app** service, port **3000**, with HTTPS. Do not expose the **db** service publicly.
-5. Configure backups for the named volume `t2vpn_pgdata` and protect `t2vpn_secrets`. **Never delete these volumes during redeployment.** The latter contains the database password.
+5. Configure backups for the named volume `t2vpn_pgdata` and protect `t2vpn_secrets`. **Never delete these volumes during redeployment.** The latter contains the database password and VPN profile encryption key. Losing the profile key makes previously encrypted VPN profiles unreadable.
 6. After startup, visit `/login`.
 
 ## Production cautions
