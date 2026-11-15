@@ -6,7 +6,7 @@ DB_PASSWORD="$(cat "$FILE")"
 export DATABASE_URL="postgresql://t2vpn:${DB_PASSWORD}@db:5432/t2vpn?schema=public"
 unset DB_PASSWORD
 echo "Initializing PostgreSQL schema..."
-npx prisma db push --accept-data-loss=false
+npx prisma db push
 echo "Provisioning admin account..."
 npm run db:seed
 exec npm run start
