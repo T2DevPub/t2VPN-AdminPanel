@@ -21,6 +21,7 @@ model VpnServer {
   countryCode String
   city        String       @default("")
   host        String       @unique
+  deployedOn  String       @default("")
   region      String?
   tier        String       @default("FREE")
   visibility  String       @default("BOTH")
