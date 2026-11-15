@@ -59,8 +59,8 @@ export default function DashboardShell({ children, username }: { children: React
     <div className={`min-h-screen transition-[margin] duration-200 ${collapsed ? 'lg:ml-[76px]' : 'lg:ml-[258px]'}`}>
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-7">
         <div className="flex items-center gap-3">
-          <button aria-label="Open menu" className="ui-header-icon lg:hidden" onClick={() => setMobileOpen(true)}><Menu size={22}/></button>
-          <button aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="ui-header-icon hidden lg:inline-flex" onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronRight size={19}/> : <ChevronLeft size={19}/>}</button>
+          <button aria-label="Open menu" className="ui-header-icon ui-mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={22}/></button>
+          <button aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="ui-header-icon ui-desktop-collapse" onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronRight size={19}/> : <ChevronLeft size={19}/>}</button>
           <span className="text-sm font-semibold text-slate-800">{links.find(([href]) => path === href || (href !== '/dashboard' && path.startsWith(href + '/')))?.[1] || 'Dashboard'}</span>
         </div>
         <span className="hidden text-xs font-medium text-slate-500 sm:inline">T2VPN Admin Portal</span>
