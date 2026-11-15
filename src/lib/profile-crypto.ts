@@ -1,0 +1,4 @@
+import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
+function key(){const raw=process.env.VPN_PROFILE_ENCRYPTION_KEY;if(!raw||!/^[a-fA-F0-9]{64}$/.test(raw))throw new Error('VPN_PROFILE_ENCRYPTION_KEY must be 64 hex characters');return Buffer.from(raw,'hex')}
+export function encrypt(plaintext:string){const iv=randomBytes(12);const cipher=createCipheriv('aes-256-gcm',key(),iv);const ciphertext=Buffer.concat([cipher.update(plaintext,'utf8'),cipher.final()]);return Buffer.concat([iv,cipher.getAuthTag(),ciphertext]).toString('base64')}
+export function decrypt(encoded:string){const bytes=Buffer.from(encoded,'base64');const decipher=createDecipheriv('aes-256-gcm',key(),bytes.subarray(0,12));decipher.setAuthTag(bytes.subarray(12,28));return Buffer.concat([decipher.update(bytes.subarray(28)),decipher.final()]).toString('utf8')}
