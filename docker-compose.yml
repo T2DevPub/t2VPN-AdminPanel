@@ -45,8 +45,8 @@ services:
       NODE_ENV: production
     volumes:
       - t2vpn_secrets:/run/t2vpn:ro
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     networks:
       - private
       - default
