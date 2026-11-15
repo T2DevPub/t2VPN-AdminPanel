@@ -1,0 +1,1 @@
+import ServerManager from '@/components/ServerManager';export default function Servers(){return <ServerManager/>}
