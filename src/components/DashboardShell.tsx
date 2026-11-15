@@ -63,7 +63,7 @@ export default function DashboardShell({ children, username }: { children: React
           <button aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="ui-header-icon ui-desktop-collapse" onClick={() => setCollapsed(v => !v)}>{collapsed ? <ChevronRight size={19}/> : <ChevronLeft size={19}/>}</button>
           <span className="text-sm font-semibold text-slate-800">{links.find(([href]) => path === href || (href !== '/dashboard' && path.startsWith(href + '/')))?.[1] || 'Dashboard'}</span>
         </div>
-        <span className="hidden text-xs font-medium text-slate-500 sm:inline">T2VPN Admin Portal</span>
+        
       </header>
       <main key={path} className="ui-page-enter mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-7">{children}</main>
     </div>
