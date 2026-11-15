@@ -1,0 +1,58 @@
+services:
+  secrets-init:
+    image: alpine:3.21
+    restart: "no"
+    volumes:
+      - t2vpn_secrets:/secrets
+    command: >
+      sh -ec 'if [ ! -s /secrets/db_password ]; then
+      umask 077; head -c 48 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/db_password;
+      fi;
+      chmod 644 /secrets/db_password'
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: t2vpn
+      POSTGRES_DB: t2vpn
+      POSTGRES_PASSWORD_FILE: /run/t2vpn/db_password
+    volumes:
+      - t2vpn_pgdata:/var/lib/postgresql/data
+      - t2vpn_secrets:/run/t2vpn:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U t2vpn -d t2vpn"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - private
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in Coolify}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Coolify (12+ characters)}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET (32+ characters)}
+      VPN_PROFILE_ENCRYPTION_KEY: ${VPN_PROFILE_ENCRYPTION_KEY:?Set VPN_PROFILE_ENCRYPTION_KEY (64 hex characters)}
+      NODE_ENV: production
+    volumes:
+      - t2vpn_secrets:/run/t2vpn:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - private
+      - default
+volumes:
+  t2vpn_pgdata:
+  t2vpn_secrets:
+networks:
+  private:
+    internal: true
