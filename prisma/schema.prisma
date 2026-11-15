@@ -61,3 +61,46 @@ model AuditLog {
   detail    String?
   createdAt DateTime @default(now())
 }
+
+
+model AppInstallation {
+  id String @id @default(cuid())
+  installationId String @unique
+  deviceModel String @default("")
+  manufacturer String @default("")
+  androidVersion String @default("")
+  appVersion String @default("")
+  countryCode String @default("")
+  plan String @default("FREE")
+  subscriptionExpiresAt DateTime?
+  revoked Boolean @default(false)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  sessions VpnUsageSession[]
+  events InstallationEvent[]
+}
+
+model InstallationEvent {
+  id String @id @default(cuid())
+  installationId String
+  installation AppInstallation @relation(fields: [installationId], references: [installationId], onDelete: Cascade)
+  kind String
+  countryCode String @default("")
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+  @@index([installationId, createdAt])
+}
+
+model VpnUsageSession {
+  id String @id @default(cuid())
+  installationId String
+  installation AppInstallation @relation(fields: [installationId], references: [installationId], onDelete: Cascade)
+  serverId String
+  connectedAt DateTime @default(now())
+  disconnectedAt DateTime?
+  bytesIn BigInt @default(0)
+  bytesOut BigInt @default(0)
+  outcome String @default("CONNECTED")
+  @@index([installationId, connectedAt])
+  @@index([serverId, connectedAt])
+}
