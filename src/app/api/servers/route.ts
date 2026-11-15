@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {db} from '@/lib/db';import {getSession} from '@/lib/auth';import {encrypt} from '@/lib/profile-crypto';import {z} from 'zod';
 export const runtime='nodejs';
-const input=z.object({name:z.string().min(2).max(80),country:z.string().min(2).max(80),countryCode:z.string().regex(/^[A-Z]{2}$/),city:z.string().min(1).max(80),host:z.string().min(3).max(255),visibility:z.enum(['BOTH','FREE','PLUS']),enabled:z.boolean(),freeProfile:z.number().int().min(1).max(2),plusProfile:z.number().int().min(1).max(2)});
+const input=z.object({name:z.string().min(2).max(80),country:z.string().min(2).max(80),countryCode:z.string().regex(/^[A-Z]{2}$/),city:z.string().min(1).max(80),host:z.string().min(3).max(255),deployedOn:z.string().max(100).optional(),visibility:z.enum(['BOTH','FREE','PLUS']),enabled:z.boolean(),freeProfile:z.number().int().min(1).max(2),plusProfile:z.number().int().min(1).max(2)});
 function sameOrigin(req:Request){
   const origin=req.headers.get('origin');
   if(!origin)return true;
@@ -25,6 +25,6 @@ const ovpn=await file.text();if(ovpn.includes('\0')||!/^\s*(?:#|client|dev|proto
 profiles.push({slot,protocol:String(protocol),port,usernameEncrypted:encrypt(username),passwordEncrypted:encrypt(password),ovpnEncrypted:encrypt(ovpn),fileName:file.name.slice(0,255)})}
 if(!profiles.length)return NextResponse.json({error:'Upload at least one .ovpn file'},{status:400});
 const available=profiles.map(p=>p.slot);if(!available.includes(parsed.data.freeProfile)||!available.includes(parsed.data.plusProfile))return NextResponse.json({error:'Assigned configuration has no uploaded file'},{status:400});
-const d=parsed.data;const server=await db.$transaction(async tx=>{const s=await tx.vpnServer.create({data:{name:d.name,country:d.country,countryCode:d.countryCode,city:d.city,host:d.host,visibility:d.visibility,freeProfile:d.freeProfile,plusProfile:d.plusProfile,enabled:d.enabled,profiles:{create:profiles}}});await tx.auditLog.create({data:{actor,action:'server.create',detail:s.id}});return s});
+const d=parsed.data;const server=await db.$transaction(async tx=>{const s=await tx.vpnServer.create({data:{name:d.name,country:d.country,countryCode:d.countryCode,city:d.city,host:d.host,deployedOn:d.deployedOn||"",visibility:d.visibility,freeProfile:d.freeProfile,plusProfile:d.plusProfile,enabled:d.enabled,profiles:{create:profiles}}});await tx.auditLog.create({data:{actor,action:'server.create',detail:s.id}});return s});
 return NextResponse.json({id:server.id,ok:true},{status:201})
 }catch(e){console.error('Server creation failed',e instanceof Error?e.message:'unknown');return NextResponse.json({error:'Unable to save server; verify settings and encryption key'},{status:400})}}
