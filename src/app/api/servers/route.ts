@@ -2,7 +2,18 @@ import {NextResponse} from 'next/server';
 import {db} from '@/lib/db';import {getSession} from '@/lib/auth';import {encrypt} from '@/lib/profile-crypto';import {z} from 'zod';
 export const runtime='nodejs';
 const input=z.object({name:z.string().min(2).max(80),country:z.string().min(2).max(80),countryCode:z.string().regex(/^[A-Z]{2}$/),city:z.string().min(1).max(80),host:z.string().min(3).max(255),visibility:z.enum(['BOTH','FREE','PLUS']),enabled:z.boolean(),freeProfile:z.number().int().min(1).max(2),plusProfile:z.number().int().min(1).max(2)});
-function sameOrigin(req:Request){const origin=req.headers.get('origin');return !origin||new URL(origin).host===new URL(req.url).host}
+function sameOrigin(req:Request){
+  const origin=req.headers.get('origin');
+  if(!origin)return true;
+  try{
+    const source=new URL(origin);
+    if(!['http:','https:'].includes(source.protocol))return false;
+    const forwardedHost=req.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+    const host=req.headers.get('host');
+    const allowedHosts=[forwardedHost,host,new URL(req.url).host].filter(Boolean);
+    return allowedHosts.includes(source.host);
+  }catch{return false}
+}
 export async function GET(){if(!await getSession())return NextResponse.json({error:'Unauthorized'},{status:401});const servers=await db.vpnServer.findMany({orderBy:{createdAt:'desc'},include:{profiles:{select:{slot:true,protocol:true,port:true,fileName:true}}}});return NextResponse.json(servers)}
 export async function POST(req:Request){const actor=await getSession();if(!actor)return NextResponse.json({error:'Unauthorized'},{status:401});if(!sameOrigin(req))return NextResponse.json({error:'Invalid origin'},{status:403});try{
 const form=await req.formData();const raw=form.get('metadata');if(typeof raw!=='string')return NextResponse.json({error:'Missing metadata'},{status:400});const parsed=input.safeParse(JSON.parse(raw));if(!parsed.success)return NextResponse.json({error:'Invalid server details'},{status:400});
