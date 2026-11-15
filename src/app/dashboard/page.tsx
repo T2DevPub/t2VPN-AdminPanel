@@ -23,7 +23,7 @@ export default async function Overview(){
  const serverCounts=new Map(usage.map(u=>[u.serverId,u._count.id]));
  const ranked=servers.map(s=>({...s,sessions:serverCounts.get(s.id)||0})).sort((a,b)=>b.sessions-a.sessions).slice(0,7);
  const maxServer=Math.max(1,...ranked.map(s=>s.sessions)),maxCountry=Math.max(1,...demographics.map(c=>c[1]));
- const downloaded=traffic._sum.bytesIn??0n,uploaded=traffic._sum.bytesOut??0n;
+ const downloaded=traffic._sum.bytesIn??BigInt(0),uploaded=traffic._sum.bytesOut??BigInt(0);
  return <div className="mx-auto max-w-7xl space-y-5 pb-8">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.15em] text-slate-500">T2VPN / Operations</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Dashboard overview</h1></div><span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500">Session and traffic reporting · Last 24 hours</span></div>
   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
