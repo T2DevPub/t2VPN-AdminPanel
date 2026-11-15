@@ -8,7 +8,10 @@ services:
       sh -ec 'if [ ! -s /secrets/db_password ]; then
       umask 077; head -c 48 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/db_password;
       fi;
-      chmod 644 /secrets/db_password'
+      if [ ! -s /secrets/profile_key ]; then
+      umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/profile_key;
+      fi;
+      chmod 644 /secrets/db_password /secrets/profile_key'
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -41,7 +44,6 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in Coolify}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Coolify (12+ characters)}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET (32+ characters)}
-      VPN_PROFILE_ENCRYPTION_KEY: ${VPN_PROFILE_ENCRYPTION_KEY:?Set VPN_PROFILE_ENCRYPTION_KEY (64 hex characters)}
       NODE_ENV: production
     volumes:
       - t2vpn_secrets:/run/t2vpn:ro
