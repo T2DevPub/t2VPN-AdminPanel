@@ -1,2 +1,28 @@
 @import "tailwindcss";
 :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f7f8fa;color:#172033;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.input{width:100%;border:1px solid #e1e6ef;background:white;border-radius:10px;padding:12px;outline:0}.input:focus{border-color:#77787d;box-shadow:0 0 0 3px #77787d22}.card{background:white;border:1px solid #e8ebf0;border-radius:16px;box-shadow:0 8px 32px #1d294008}.muted{color:#7b8497}
+
+
+/* Shared admin interaction system: predictable hit targets, keyboard focus, restrained motion. */
+button:disabled{cursor:not-allowed;opacity:.55}
+:where(button,a,input,select,textarea):focus-visible{outline:3px solid #94a3b8;outline-offset:3px}
+.ui-btn{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:11px;padding:0 17px;font-size:14px;font-weight:600;white-space:nowrap;transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.ui-btn:not(:disabled):active{transform:translateY(1px)}
+.ui-btn-primary{background:#101a32;color:white;box-shadow:0 2px 5px #101a3214}
+.ui-btn-primary:not(:disabled):hover{background:#24324e;box-shadow:0 5px 12px #101a3220}
+.ui-btn-secondary{background:white;color:#24324e;border-color:#cbd5e1}
+.ui-btn-secondary:not(:disabled):hover{background:#f8fafc;border-color:#94a3b8}
+.ui-tabs{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:5px;margin:0;border:1px solid #e2e8f0;border-radius:14px;background:#f1f5f9;width:max-content;max-width:100%;scrollbar-width:thin}
+.ui-tab{display:inline-flex;min-height:42px;align-items:center;justify-content:center;white-space:nowrap;padding:0 17px;border:1px solid transparent;border-radius:10px;color:#475569;font-size:14px;font-weight:600;background:transparent;transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}
+.ui-tab:hover:not(.ui-tab-active){background:#e2e8f0;color:#0f172a}
+.ui-tab-active{background:white;color:#0f172a;box-shadow:0 1px 4px #0f172a1c;border-color:#e2e8f0}
+.ui-switch{appearance:none;-webkit-appearance:none;position:relative;display:inline-block;flex:none;width:44px;height:26px;margin:0;border:1px solid #cbd5e1;border-radius:999px;background:#cbd5e1;cursor:pointer;vertical-align:middle;transition:background-color .2s ease,border-color .2s ease}
+.ui-switch::before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:transform .2s ease}
+.ui-switch:checked{background:#111b32;border-color:#111b32}
+.ui-switch:checked::before{transform:translateX(18px)}
+.ui-switch:disabled{opacity:.5;cursor:not-allowed}
+.ui-setting-row{display:flex;min-height:44px;align-items:center;justify-content:space-between;gap:16px;font-size:14px;cursor:pointer}
+.ui-icon-danger{display:inline-flex;width:40px;height:40px;align-items:center;justify-content:center;border-radius:10px;color:#dc2626;transition:background-color .18s ease}
+.ui-icon-danger:hover{background:#fef2f2}
+.card{transition:box-shadow .2s ease,border-color .2s ease}
+@media(max-width:640px){.ui-btn{flex:1}.ui-tabs{width:100%}}
+@media(prefers-reduced-motion:reduce){.ui-btn,.ui-tab,.ui-switch,.ui-switch::before,.ui-icon-danger,.card{transition:none!important}}
