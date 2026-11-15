@@ -44,11 +44,8 @@ export default function DashboardShell({ children, username }: { children: React
     <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white transition-all duration-200 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 ${collapsed ? 'w-[76px]' : 'w-[258px]'}`}>
       <div className="flex h-[76px] shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-          <img src="/t2vpn_icon.png" alt="T2VPN" width={42} height={42} className="h-10 w-10 shrink-0 rounded-full object-contain" />
-          <div className={collapsed ? 'lg:hidden' : ''}>
-            <div className="text-lg font-bold tracking-tight text-slate-900">T2<span className="font-normal text-slate-500">DEV</span></div>
-            <div className="whitespace-nowrap text-[9px] tracking-[.14em] text-slate-400">VPN CONTROL CENTER</div>
-          </div>
+          <img src="/t2vpn_logo.png" alt="T2VPN" width={126} height={42} className={`h-10 shrink-0 object-contain object-left ${collapsed ? "lg:w-12" : "w-[126px]"}`} />
+          
         </Link>
         <button aria-label="Close menu" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-500 lg:hidden" onClick={() => setMobileOpen(false)}><X size={20}/></button>
       </div>
