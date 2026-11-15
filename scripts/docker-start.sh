@@ -3,6 +3,9 @@ set -eu
 FILE=/run/t2vpn/db_password
 if [ ! -s "$FILE" ]; then echo "Missing auto-generated database credentials" >&2; exit 1; fi
 DB_PASSWORD="$(cat "$FILE")"
+KEY_FILE=/run/t2vpn/profile_key
+if [ ! -s "$KEY_FILE" ]; then echo "Missing auto-generated VPN encryption key" >&2; exit 1; fi
+export VPN_PROFILE_ENCRYPTION_KEY="$(cat "$KEY_FILE")"
 export DATABASE_URL="postgresql://t2vpn:${DB_PASSWORD}@db:5432/t2vpn?schema=public"
 unset DB_PASSWORD
 echo "Initializing PostgreSQL schema..."
