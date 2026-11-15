@@ -26,3 +26,33 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .card{transition:box-shadow .2s ease,border-color .2s ease}
 @media(max-width:640px){.ui-btn{flex:1}.ui-tabs{width:100%}}
 @media(prefers-reduced-motion:reduce){.ui-btn,.ui-tab,.ui-switch,.ui-switch::before,.ui-icon-danger,.card{transition:none!important}}
+
+
+/* T2VPN unified application design system */
+:root{--ui-ink:#172033;--ui-muted:#64748b;--ui-border:#e2e8f0;--ui-surface:#fff;--ui-canvas:#f7f8fa;--ui-accent:#101a32;--ui-radius:12px}
+html{scroll-behavior:smooth}
+body{background:var(--ui-canvas);color:var(--ui-ink);-webkit-font-smoothing:antialiased}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation}
+.input,textarea,select{min-height:44px;transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease}
+.input:hover:not(:disabled){border-color:#b6c2d2}
+.input:focus,.input:focus-visible{border-color:#64748b;box-shadow:0 0 0 3px #64748b20;outline:none}
+.input:disabled{background:#f1f5f9;color:#94a3b8}
+.card{border-color:var(--ui-border);border-radius:14px;box-shadow:0 2px 12px #17203307}
+.card:hover{border-color:#d7dfe9}
+.ui-btn{min-height:42px;border-radius:10px}
+.ui-btn:focus-visible,.ui-tab:focus-visible,.ui-switch:focus-visible{outline:3px solid #94a3b8;outline-offset:3px}
+.ui-btn-primary{background:var(--ui-accent)}
+.ui-switch{width:44px;height:26px}
+.ui-setting-row{border-radius:8px}
+table{border-collapse:collapse}
+th{font-weight:600}
+tbody tr{transition:background-color .16s ease}
+tbody tr:hover{background-color:#f8fafc}
+@keyframes ui-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.ui-page-enter{animation:ui-enter .22s ease-out both}
+.ui-nav-link{transition:background-color .16s ease,color .16s ease,transform .16s ease}
+.ui-nav-link:active{transform:scale(.99)}
+.ui-header-icon{display:inline-flex;width:38px;height:38px;align-items:center;justify-content:center;border-radius:9px;color:#64748b;transition:background-color .16s ease,color .16s ease}
+.ui-header-icon:hover{background:#f1f5f9;color:#0f172a}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.ui-page-enter{animation:none}.ui-nav-link,.ui-header-icon,tbody tr,.input{transition:none}}
