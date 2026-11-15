@@ -1,6 +1,35 @@
 generator client { provider = "prisma-client-js" }
 datasource db { provider = "postgresql" url = env("DATABASE_URL") }
 model Admin { id String @id @default(cuid()) username String @unique passwordHash String createdAt DateTime @default(now()) }
-model VpnServer { id String @id @default(cuid()) name String country String countryCode String host String @unique region String? tier String @default("FREE") enabled Boolean @default(true) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model VpnServer {
+ id String @id @default(cuid())
+ name String
+ country String
+ countryCode String
+ city String @default("")
+ host String @unique
+ region String?
+ tier String @default("FREE")
+ visibility String @default("BOTH")
+ freeProfile Int @default(1)
+ plusProfile Int @default(1)
+ enabled Boolean @default(true)
+ profiles VpnProfile[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model VpnProfile {
+ id String @id @default(cuid())
+ serverId String
+ server VpnServer @relation(fields:[serverId],references:[id],onDelete:Cascade)
+ slot Int
+ protocol String
+ port Int
+ usernameEncrypted String
+ passwordEncrypted String
+ ovpnEncrypted String @db.Text
+ fileName String
+ @@unique([serverId,slot])
+}
 model AppSetting { key String @id value String updatedAt DateTime @updatedAt }
 model AuditLog { id String @id @default(cuid()) action String actor String detail String? createdAt DateTime @default(now()) }
