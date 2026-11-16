@@ -11,7 +11,8 @@ export async function readMobileAdConfig():Promise<Config>{
   if(!row)return defaults;
   const v=JSON.parse(row.value) as Config;
   if(v.version!==2||!Array.isArray(v.units)||!Array.isArray(v.placements)||!Array.isArray(v.countryRules)||!v.providers)throw new Error('Invalid ad configuration');
-  return v;
+  const keys=['app_open','home_banner','usage_banner','region_native','rewarded_unlock','connect_interstitial','disconnect_interstitial','free_server_interstitial'];
+  return {...v,placements:keys.map(key=>v.placements.find(p=>p.key===key)||{key,enabled:false,unitRef:'',fallbackRef:''})};
 }
 export function getPublicPlacements(c:Config,countryCode:string){
   const country=/^[A-Z]{2}$/.test(countryCode)?countryCode:'';
