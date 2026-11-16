@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import {strict as assert} from 'node:assert';
+import {chooseVpnSlot} from '../src/lib/server-routing';
+test('Free user uses secondary configuration when available',()=>assert.equal(chooseVpnSlot('FREE',true,false,false),2));
+test('Free server without secondary configuration uses Config 1',()=>assert.equal(chooseVpnSlot('FREE',false,false,false),1));
+test('Paid Plus on a Free server uses Config 1',()=>assert.equal(chooseVpnSlot('FREE',true,true,false),1));
+test('Reward-only on a Free server uses Config 2',()=>assert.equal(chooseVpnSlot('FREE',true,false,true),2));
+test('Plus server denies unauthorized Free user',()=>assert.equal(chooseVpnSlot('PLUS',true,false,false),null));
+test('Plus server grants paid Plus Config 1',()=>assert.equal(chooseVpnSlot('PLUS',true,true,false),1));
+test('Plus server grants verified reward Config 1',()=>assert.equal(chooseVpnSlot('PLUS',true,false,true),1));
+test('Unknown tiers fail closed',()=>assert.equal(chooseVpnSlot('UNKNOWN',false,true,true),null));
