@@ -1,0 +1,37 @@
+name: T2VPN V2 mobile API build
+on:
+  push:
+    branches:
+      - main
+      - 'feature/v2-android-backend-*'
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
+      AUTH_SECRET: test-only-placeholder-do-not-use-in-production-abcdefghijk
+      ADMIN_USERNAME: ci
+      ADMIN_PASSWORD: placeholder-only-for-ci
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Test Free/Plus routing
+        run: npm test
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Build Next.js
+        run: npm run build
+      - name: Build Coolify Docker image
+        run: docker build -t t2vpn-admin-v2 .
