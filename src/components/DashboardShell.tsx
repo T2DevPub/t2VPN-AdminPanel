@@ -8,7 +8,7 @@ const links = [
   ['/dashboard', 'Overview', LayoutDashboard],
   ['/dashboard/servers', 'VPN Servers', Server],
   ['/dashboard/analytics', 'Analytics', ChartNoAxesCombined],
-  ['/dashboard/connections', 'Connections', Activity],
+  ['/dashboard/connections', 'Network Traffic', Activity],
   ['/dashboard/users', 'Users & Devices', Users],
   ['/dashboard/monetization', 'GAMOB AdX', BarChart3],
   ['/dashboard/ad-management', 'Ad Management', Megaphone],
