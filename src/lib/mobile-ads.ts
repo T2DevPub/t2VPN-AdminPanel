@@ -7,7 +7,7 @@ export type AdPlacement={key:Key;enabled:boolean;unitRef:string;fallbackRef:stri
 export type AdCountryRule={country:string;placement:Key;unitRef:string;enabled:boolean};
 export type AdConfig={version:2;adsEnabled:boolean;providers:Record<string,{enabled:boolean;appId:string}>;units:AdUnit[];placements:AdPlacement[];countryRules:AdCountryRule[];appOpenCooldownMinutes:number;rewardedUnlockEnabled:boolean};
 const defaultProviders={ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}};
-const defaults:AdConfig={version:2,adsEnabled:false,providers:defaultProviders,units:[],placements:[],countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
+const defaults:AdConfig={version:2,adsEnabled:false,providers:defaultProviders,units:[],placements:adKeys.map(key=>({key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
 export async function readAdConfig():Promise<AdConfig>{
  const item=await db.appSetting.findUnique({where:{key:'ad_management_v2'}});
  if(!item)return defaults;
