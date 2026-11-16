@@ -14,7 +14,7 @@ export async function GET(req:Request){
   return NextResponse.json({
    bannersEnabled:Boolean(p('home_banner')?.enabled),
    appOpenAdsEnabled:Boolean(p('app_open')?.enabled),
-   interstitialOnConnect:false,interstitialOnDisconnect:false,interstitialOnFreeServerSelection:false,
+   interstitialOnConnect:Boolean(p('connect_interstitial')?.enabled),interstitialOnDisconnect:Boolean(p('disconnect_interstitial')?.enabled),interstitialOnFreeServerSelection:Boolean(p('free_server_interstitial')?.enabled),
    adNetworkProvider:provider,ruAdNetworkProvider:country==='RU'?provider:'Yandex',
    bannerAdUnitId:id('home_banner','ADX'),usageStatsBannerAdUnitId:id('usage_banner','ADX'),
    appOpenAdUnitId:id('app_open','ADX'),nativeAdUnitId:id('region_native','ADX'),rewardedAdUnitId:id('rewarded_unlock','ADX'),
@@ -22,8 +22,8 @@ export async function GET(req:Request){
    metaAppOpenAdUnitId:id('app_open','META'),metaNativeAdUnitId:id('region_native','META'),metaRewardedAdUnitId:id('rewarded_unlock','META'),
    yandexBannerAdUnitId:id('home_banner','ADFOX'),yandexUsageStatsBannerAdUnitId:id('usage_banner','ADFOX'),
    yandexAppOpenAdUnitId:id('app_open','ADFOX'),yandexNativeAdUnitId:id('region_native','ADFOX'),yandexRewardedAdUnitId:id('rewarded_unlock','ADFOX'),
-   interstitialAdUnitId:'',metaInterstitialAdUnitId:'',yandexInterstitialAdUnitId:'',
-   freeServerInterstitialAdUnitId:'',metaFreeServerInterstitialAdUnitId:'',yandexFreeServerInterstitialAdUnitId:'',
+   interstitialAdUnitId:id('connect_interstitial','ADX'),metaInterstitialAdUnitId:id('connect_interstitial','META'),yandexInterstitialAdUnitId:id('connect_interstitial','ADFOX'),
+   freeServerInterstitialAdUnitId:id('free_server_interstitial','ADX'),metaFreeServerInterstitialAdUnitId:id('free_server_interstitial','META'),yandexFreeServerInterstitialAdUnitId:id('free_server_interstitial','ADFOX'),
    enablePremiumServerRewards:c.rewardedUnlockEnabled
   },{headers:{'Cache-Control':'public, max-age=30, s-maxage=30'}});
  }catch{return NextResponse.json({error:'Advertising configuration unavailable'},{status:503})}
