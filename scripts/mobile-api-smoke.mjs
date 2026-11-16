@@ -1,0 +1,64 @@
+import {strict as assert} from 'node:assert';
+import {generateKeyPairSync,randomUUID,sign} from 'node:crypto';
+
+const base=process.env.SMOKE_BASE_URL||'http://localhost:3000';
+async function call(path,options={}){
+ const response=await fetch(base+path,options);
+ const text=await response.text();
+ let data;try{data=JSON.parse(text)}catch{data={raw:text}}
+ return {status:response.status,data,headers:response.headers};
+}
+const json=(body,headers={})=>({method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
+const health=await call('/api/health');
+assert.equal(health.status,200,'Database health should return 200');
+const unauth=await call('/api/servers');
+assert.equal(unauth.status,401,'Admin API must require a session');
+const initial=await call('/api/mobile/servers');
+assert.equal(initial.status,200);
+assert.ok(Array.isArray(initial.data.servers));
+const ads=await call('/api/mobile/ads?country=RU');
+assert.equal(ads.status,200);
+assert.equal(ads.data.placements.length,8);
+const id=randomUUID();
+const {publicKey,privateKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
+const spki=publicKey.export({type:'spki',format:'der'}).toString('base64');
+const challenge=await call('/api/mobile/auth/challenge',json({installationId:id,publicKeySpki:spki}));
+assert.equal(challenge.status,200,JSON.stringify(challenge.data));
+const signature=sign('sha256',Buffer.from(challenge.data.signingPayload,'utf8'),privateKey).toString('base64');
+const tokenResult=await call('/api/mobile/auth/token',json({installationId:id,challengeId:challenge.data.challengeId,signature}));
+assert.equal(tokenResult.status,200,JSON.stringify(tokenResult.data));
+const auth={Authorization:'Bearer '+tokenResult.data.accessToken};
+const current=await call('/api/mobile/me',{headers:auth});
+assert.equal(current.status,200);
+assert.equal(current.data.plan,'FREE');
+const repeated=await call('/api/mobile/auth/token',json({installationId:id,challengeId:challenge.data.challengeId,signature}));
+assert.equal(repeated.status,401,'Replayed challenge must fail');
+const reward=await call('/api/mobile/reward/verify',{method:'POST',headers:auth});
+assert.equal(reward.status,200);
+assert.equal(reward.data.verified,false);
+const login=await call('/api/auth/login',json({username:process.env.ADMIN_USERNAME,password:process.env.ADMIN_PASSWORD}));
+assert.equal(login.status,200,JSON.stringify(login.data));
+const cookie=(login.headers.get('set-cookie')||'').split(';')[0];
+assert.ok(cookie.startsWith('t2vpn_admin_session='));
+const metadata={name:'CI Server',country:'Germany',countryCode:'DE',city:'Berlin',host:'ci-vpn.example.com',
+ deployedOn:'CI',tier:'FREE',visibility:'BOTH',enabled:true,freeProfile:1,plusProfile:1};
+const form=new FormData();
+form.set('metadata',JSON.stringify(metadata));
+form.set('file1',new Blob(['client\ndev tun\nproto udp\nremote ci-vpn.example.com 1194\n'],{type:'application/octet-stream'}),'ci.ovpn');
+form.set('username1','ci-test');
+form.set('password1','ci-only-secret');
+form.set('protocol1','UDP');
+form.set('port1','1194');
+const made=await call('/api/servers',{method:'POST',headers:{Cookie:cookie},body:form});
+assert.equal(made.status,201,JSON.stringify(made.data));
+const directory=await call('/api/mobile/servers');
+assert.equal(directory.status,200);
+assert.equal(directory.data.servers.length,1);
+assert.equal(directory.data.servers[0].countryCode,'DE');
+const published=JSON.stringify(directory.data);
+assert.ok(!published.includes('ci-only-secret'));
+assert.ok(!published.includes('ovpnConfig'));
+assert.ok(!published.includes('passwordEncrypted'));
+const disabled=await call('/api/mobile/connect',json({serverId:made.data.id},auth));
+assert.equal(disabled.status,503,'Profile distribution must be off by default');
+console.log('V2 API smoke tests passed: auth, replay protection, public metadata, ad config, admin CRUD, provisioning gate.');
