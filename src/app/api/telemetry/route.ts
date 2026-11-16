@@ -33,6 +33,8 @@ export async function POST(req:Request){
    await tx.appInstallation.upsert({where:{installationId:d.installationId},
     create:{installationId:d.installationId,deviceModel:d.deviceModel||'',manufacturer:d.manufacturer||'',androidVersion:d.androidVersion||'',appVersion:d.appVersion||'',countryCode:d.countryCode||''},
     update:{lastSeenAt:new Date(),...(d.deviceModel?{deviceModel:d.deviceModel}:{}),...(d.manufacturer?{manufacturer:d.manufacturer}:{}),...(d.androidVersion?{androidVersion:d.androidVersion}:{}),...(d.appVersion?{appVersion:d.appVersion}:{}),...(d.countryCode?{countryCode:d.countryCode}:{})}});
+   const recordedAt=new Date().toISOString();
+   await tx.appSetting.upsert({where:{key:'vpn_collector_last_seen'},create:{key:'vpn_collector_last_seen',value:recordedAt},update:{value:recordedAt}});
    if(d.event&&d.event!=='HEARTBEAT')await tx.installationEvent.create({data:{installationId:d.installationId,kind:d.event,countryCode:d.countryCode||''}});
    if(d.event==='CONNECT'&&d.serverId){
     const server=await tx.vpnServer.findUnique({where:{id:d.serverId}});
