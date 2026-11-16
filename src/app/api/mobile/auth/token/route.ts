@@ -9,7 +9,8 @@ export async function POST(req:Request){
     const parsed=schema.safeParse(await jsonBody(req));
     if(!parsed.success)return NextResponse.json({error:'Invalid request'},{status:400,headers:mobileNoStore});
     const {installationId,challengeId,signature}=parsed.data;
-    if(!await mobileRateLimit('mobile-token-ip',requestIp(req),60,10)||!await mobileRateLimit('mobile-token-install',installationId,20,10))
+    const ip=requestIp(req);
+    if((ip!=='unidentified'&&!await mobileRateLimit('mobile-token-ip',ip,60,10))||!await mobileRateLimit('mobile-token-install',installationId,20,10))
       return NextResponse.json({error:'Rate limit exceeded'},{status:429,headers:mobileNoStore});
     const challenge=await db.mobileAuthChallenge.findUnique({where:{id:challengeId}});
     if(!challenge||challenge.consumedAt||challenge.expiresAt<=new Date()||challenge.installationId!==installationId)
