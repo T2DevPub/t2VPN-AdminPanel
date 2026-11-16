@@ -11,11 +11,27 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: build
+          POSTGRES_PASSWORD: build
+          POSTGRES_DB: build
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U build -d build"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       DATABASE_URL: postgresql://build:build@localhost:5432/build?schema=public
       AUTH_SECRET: test-only-placeholder-do-not-use-in-production-abcdefghijk
       ADMIN_USERNAME: ci
       ADMIN_PASSWORD: placeholder-only-for-ci
+      VPN_PROFILE_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      MOBILE_PROVISIONING_ENABLED: 'false'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -33,5 +49,14 @@ jobs:
         run: npx tsc --noEmit
       - name: Build Next.js
         run: npm run build
+      - name: Initialize isolated CI database
+        run: |
+          npx prisma db push
+          npm run db:seed
+      - name: Smoke-test authenticated V2 APIs on a temporary PostgreSQL database
+        run: |
+          npm run start > /tmp/next-v2.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:3000/api/health >/dev/null && break; sleep 2; done
+          node scripts/mobile-api-smoke.mjs
       - name: Build Coolify Docker image
         run: docker build -t t2vpn-admin-v2 .
