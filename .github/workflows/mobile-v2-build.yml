@@ -49,9 +49,13 @@ jobs:
         run: npx tsc --noEmit
       - name: Build Next.js
         run: npm run build
-      - name: Initialize isolated CI database
+      - name: Safely upgrade database containing an existing installation
         run: |
+          node scripts/ci-existing-installation.mjs seed
+          npm run db:prepare
+          npm run db:prepare
           npx prisma db push
+          node scripts/ci-existing-installation.mjs verify
           npm run db:seed
       - name: Smoke-test authenticated V2 APIs on a temporary PostgreSQL database
         run: |
