@@ -29,3 +29,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Build Next.js
         run: npm run build
+      - name: Verify Coolify Docker image builds without live database secrets
+        run: docker build --tag t2vpn-admin-ci .
