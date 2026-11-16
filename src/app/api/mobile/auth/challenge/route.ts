@@ -12,7 +12,8 @@ export async function POST(req:Request){
     const {installationId,publicKeySpki}=parsed.data;
     const key=createPublicKey({key:Buffer.from(publicKeySpki,'base64'),type:'spki',format:'der'});
     if(key.asymmetricKeyType!=='ec'||key.asymmetricKeyDetails?.namedCurve!=='prime256v1')return NextResponse.json({error:'P-256 key required'},{status:400});
-    const permitted=await mobileRateLimit('mobile-challenge-ip',requestIp(req),30,10)&&await mobileRateLimit('mobile-challenge-install',installationId,10,10);
+    const ip=requestIp(req);
+    const permitted=(ip==='unidentified'||await mobileRateLimit('mobile-challenge-ip',ip,30,10))&&await mobileRateLimit('mobile-challenge-install',installationId,10,10);
     if(!permitted)return NextResponse.json({error:'Too many attempts'},{status:429,headers:mobileNoStore});
     const existing=await db.appInstallation.findUnique({where:{installationId},select:{publicKeySpki:true,revoked:true}});
     if(existing?.revoked||existing?.publicKeySpki&&existing.publicKeySpki!==publicKeySpki)return NextResponse.json({error:'Installation key is already registered or revoked'},{status:403,headers:mobileNoStore});
