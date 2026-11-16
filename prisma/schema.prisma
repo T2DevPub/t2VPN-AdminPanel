@@ -74,6 +74,10 @@ model AppInstallation {
   plan String @default("FREE")
   subscriptionExpiresAt DateTime?
   revoked Boolean @default(false)
+  publicKeySpki String? @db.Text
+  rewardedUntil DateTime?
+  subscriptionCheckedAt DateTime?
+  subscriptionTokenHash String? @unique
   firstSeenAt DateTime @default(now())
   lastSeenAt DateTime @default(now())
   sessions VpnUsageSession[]
@@ -98,9 +102,41 @@ model VpnUsageSession {
   serverId String
   connectedAt DateTime @default(now())
   disconnectedAt DateTime?
+  lastHeartbeatAt DateTime?
   bytesIn BigInt @default(0)
   bytesOut BigInt @default(0)
   outcome String @default("CONNECTED")
   @@index([installationId, connectedAt])
   @@index([serverId, connectedAt])
+  @@index([disconnectedAt, lastHeartbeatAt])
+}
+
+model MobileAuthChallenge {
+  id String @id @default(uuid())
+  installationId String
+  publicKeySpki String @db.Text
+  nonce String
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([installationId, expiresAt])
+}
+model MobileRewardPending {
+  id String @id @default(uuid())
+  installationId String
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([installationId, expiresAt])
+}
+model MobileRewardReceipt {
+  transactionId String @id
+  installationId String
+  adUnit String
+  createdAt DateTime @default(now())
+}
+model MobileRateLimit {
+  key String @id
+  windowStart DateTime
+  hits Int @default(0)
 }
