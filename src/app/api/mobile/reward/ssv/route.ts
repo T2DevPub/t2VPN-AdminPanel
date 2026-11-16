@@ -20,10 +20,12 @@ export async function GET(req:Request){
   const query=new URL(req.url).search.slice(1);
   if(query.length>8192)return new NextResponse('Invalid callback',{status:400});
   // Google signs the *original* query bytes preceding the final signature/key_id parameters.
-  const match=/^(.*)&signature=([A-Za-z0-9_-]+)&key_id=([0-9]+)$/.exec(query);
+  const match=/^(.*)&signature=([A-Za-z0-9_-]+=*)&key_id=([0-9]+)$/.exec(query);
   if(!match||match[1].includes('&signature=')||match[1].includes('&key_id='))return new NextResponse('Invalid signature fields',{status:400});
   const params=new URLSearchParams(match[1]);
-  const timestamp=Number(params.get('timestamp'));
+  const rawTimestamp=Number(params.get('timestamp'));
+  // AdMob callback timestamps have appeared in both milliseconds and microseconds.
+  const timestamp=rawTimestamp>1e14?rawTimestamp/1000:rawTimestamp;
   const txid=params.get('transaction_id')||'';
   const pendingId=params.get('custom_data')||'';
   const adUnit=params.get('ad_unit')||'';
@@ -36,7 +38,8 @@ export async function GET(req:Request){
   const valid=verifySignature('sha256',Buffer.from(match[1],'utf8'),createPublicKey(selected.pem),Buffer.from(match[2],'base64url'));
   if(!valid)return new NextResponse('Invalid callback signature',{status:403});
   const eligible=eligibleRewardedUnitIds(await readAdConfig());
-  if(!eligible.has(adUnit))return new NextResponse('Reward ad unit not enabled',{status:403});
+  // AdMob SSV may send the numeric ad-unit suffix rather than a ca-app-pub-* path.
+  if(![...eligible].some(unit=>unit===adUnit||unit.split('/').pop()===adUnit))return new NextResponse('Reward ad unit not enabled',{status:403});
   const previous=await db.mobileRewardReceipt.findUnique({where:{transactionId:txid}});
   if(previous)return new NextResponse('OK',{status:200});
   const pending=await db.mobileRewardPending.findUnique({where:{id:pendingId}});
