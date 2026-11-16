@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - 'feature/v2-android-backend-*'
+      - 'fix/coolify-safe-prisma-unique-index-*'
   pull_request:
     branches: [main]
 
