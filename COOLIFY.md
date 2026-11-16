@@ -34,3 +34,22 @@ The following **optional** Coolify environment variables now pass through `docke
 **Deployment warning:** Previous shared OpenVPN usernames/passwords can be replayed after a client receives them. Treat credentials as extractable by end users and transition to expiring per-user credentials/RADIUS before deploying broad access. Do not rely on a public `.ovpn` listing. Rate limit these endpoints again at your reverse proxy, which must overwrite `X-Real-IP` rather than accepting spoofed forwarding headers.
 
 `/api/telemetry` is intended for a trusted VPN gateway only, never directly from the app. No actual live server usage is visible until that gateway is configured. Ad network SDK integration must be completed in Android.
+
+## Existing PostgreSQL databases: automatic safe unique-index preparation
+
+Startup now runs `npm run db:prepare` **before** `npx prisma db push`. The
+preparation step checks whether `AppInstallation` already exists and, if it
+does, adds the nullable `subscriptionTokenHash` column (when absent) and
+the matching PostgreSQL unique index using idempotent DDL. It does not use
+`--accept-data-loss`, truncate tables, or overwrite rows.
+
+If duplicate **non-null** subscription token hashes are already present, the
+step stops with an explicit error instead of guessing which row to keep.
+Keep the `t2vpn_pgdata` and `t2vpn_secrets` volumes, and make a database
+backup before redeployment. The schema update is a one-time action; subsequent
+starts should be idempotent.
+
+You should see `Subscription token unique index is ready`, followed by
+`The database is already in sync` or a successful `prisma db push`, then
+admin account provisioning and Next.js startup. If Prisma warns about a
+*different* potentially destructive schema change, investigate that separately.
