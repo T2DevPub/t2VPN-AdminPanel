@@ -24,13 +24,14 @@ export async function GET(req:Request){
   const {start,end}=getPeriod(period,now);
   const where={connectedAt:{gte:start,lt:end}};
   try{
-    const [servers,sessions,installations,events,totalInstallations,liveGroups]=await Promise.all([
+    const [servers,sessions,installations,events,totalInstallations,liveGroups,collector]=await Promise.all([
       db.vpnServer.findMany({select:{id:true,name:true,country:true,countryCode:true,city:true,tier:true,deployedOn:true,enabled:true},orderBy:{name:'asc'}}),
       db.vpnUsageSession.findMany({where,select:{serverId:true,connectedAt:true,disconnectedAt:true,bytesIn:true,bytesOut:true,outcome:true},orderBy:{connectedAt:'asc'},take:50000}),
       db.appInstallation.findMany({where:{lastSeenAt:{gte:start,lt:end}},select:{countryCode:true,appVersion:true,androidVersion:true,plan:true},take:50000}),
       db.installationEvent.groupBy({by:['kind'],where:{createdAt:{gte:start,lt:end}},_count:{_all:true}}),
       db.appInstallation.count(),
-      db.vpnUsageSession.groupBy({by:['serverId'],where:{disconnectedAt:null,lastHeartbeatAt:{gte:new Date(now.getTime()-60000)}},_count:{_all:true}})
+      db.vpnUsageSession.groupBy({by:['serverId'],where:{disconnectedAt:null,lastHeartbeatAt:{gte:new Date(now.getTime()-60000)}},_count:{_all:true}}),
+      db.appSetting.findUnique({where:{key:'vpn_collector_last_seen'},select:{value:true}})
     ]);
     const liveByServer=new Map(liveGroups.map(g=>[g.serverId,g._count._all]));
     const liveCount=liveGroups.reduce((a,g)=>a+g._count._all,0);
@@ -56,7 +57,8 @@ export async function GET(req:Request){
     return NextResponse.json({
       period,generatedAt:now.toISOString(),sampled:sessions.length===50000||installations.length===50000,
       collectorConfigured:Boolean(process.env.TELEMETRY_INGEST_SECRET&&process.env.TELEMETRY_INGEST_SECRET.length>=32),
-      collectorConnected:false,
+      collectorConnected:Boolean(collector?.value&&Date.parse(collector.value)>now.getTime()-120000),
+      collectorLastSeenAt:collector?.value||null,
       totals:{servers:servers.length,connections:sessions.length,activeSessionRecords:liveCount,bytesIn:totalIn,bytesOut:totalOut,failed,installations:installations.length,totalInstallations,plusInstallations:installations.filter(x=>x.plan==='PLUS').length},
       servers:[...perServer.values()],trend:[...daily.values()].sort((a,b)=>a.date.localeCompare(b.date)),
       countries:[...countries].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count),
