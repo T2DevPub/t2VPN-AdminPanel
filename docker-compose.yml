@@ -44,6 +44,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in Coolify}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Coolify (12+ characters)}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET (32+ characters)}
+      TELEMETRY_INGEST_SECRET: ${TELEMETRY_INGEST_SECRET:-}
       NODE_ENV: production
     volumes:
       - t2vpn_secrets:/run/t2vpn:ro
