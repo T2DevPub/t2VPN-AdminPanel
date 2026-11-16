@@ -98,7 +98,7 @@ model VpnUsageSession {
   serverId String
   connectedAt DateTime @default(now())
   disconnectedAt DateTime?
-  lastHeartbeatAt DateTime @default(now())
+  lastHeartbeatAt DateTime?
   bytesIn BigInt @default(0)
   bytesOut BigInt @default(0)
   outcome String @default("CONNECTED")
