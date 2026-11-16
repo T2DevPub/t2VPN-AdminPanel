@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {z} from 'zod';
 import {db} from '@/lib/db';
 import {decrypt} from '@/lib/profile-crypto';
+import {chooseVpnSlot} from '@/lib/server-routing';
 import {entitlement,jsonBody,mobileNoStore,mobileRateLimit,requireMobile} from '@/lib/mobile-auth';
 export const runtime='nodejs';
 const input=z.object({serverId:z.string().cuid()});
@@ -18,10 +19,8 @@ export async function POST(req:Request){
   const server=await db.vpnServer.findUnique({where:{id:data.data.serverId},include:{profiles:true}});
   if(!server||!server.enabled)return NextResponse.json({error:'Server unavailable'},{status:404,headers:mobileNoStore});
   const rights=entitlement(installation);
-  if(server.tier==='PLUS'&&!rights.plus&&!rights.reward)return NextResponse.json({error:'Plus subscription or verified reward required'},{status:403,headers:mobileNoStore});
-  // Plus server always Config 1. On a Free server, paid Plus uses Config 1,
-  // free and rewarded-only installations use Config 2 when available.
-  const slot=server.tier==='PLUS'||rights.plus?1:server.profiles.some(p=>p.slot===2)?2:1;
+  const slot=chooseVpnSlot(server.tier,server.profiles.some(p=>p.slot===2),rights.plus,rights.reward);
+  if(!slot)return NextResponse.json({error:'Verified Plus subscription or reward required'},{status:403,headers:mobileNoStore});
   const profile=server.profiles.find(p=>p.slot===slot);
   if(!profile)return NextResponse.json({error:'VPN profile not configured'},{status:503,headers:mobileNoStore});
   return NextResponse.json({schemaVersion:2,serverId:server.id,countryCode:server.countryCode,
