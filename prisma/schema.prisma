@@ -98,9 +98,11 @@ model VpnUsageSession {
   serverId String
   connectedAt DateTime @default(now())
   disconnectedAt DateTime?
+  lastHeartbeatAt DateTime @default(now())
   bytesIn BigInt @default(0)
   bytesOut BigInt @default(0)
   outcome String @default("CONNECTED")
   @@index([installationId, connectedAt])
   @@index([serverId, connectedAt])
+  @@index([disconnectedAt, lastHeartbeatAt])
 }
