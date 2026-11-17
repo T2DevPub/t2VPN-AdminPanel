@@ -6,6 +6,7 @@ on:
       - 'feature/v2-android-backend-*'
       - 'fix/coolify-safe-prisma-unique-index-*'
       - 'fix/ad-management-save-simplify-*'
+      - 'feature/yandex-five-mobile-formats-*'
   pull_request:
     branches: [main]
 
