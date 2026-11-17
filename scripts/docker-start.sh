@@ -8,6 +8,8 @@ if [ ! -s "$KEY_FILE" ]; then echo "Missing auto-generated VPN encryption key" >
 export VPN_PROFILE_ENCRYPTION_KEY="$(cat "$KEY_FILE")"
 export DATABASE_URL="postgresql://t2vpn:${DB_PASSWORD}@db:5432/t2vpn?schema=public"
 unset DB_PASSWORD
+echo "Backing up PostgreSQL before schema migration..."
+sh scripts/backup-before-migration.sh
 echo "Preparing safe PostgreSQL index changes..."
 npm run db:prepare
 echo "Initializing PostgreSQL schema..."
