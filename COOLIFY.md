@@ -2,7 +2,7 @@
 
 ## Use Docker Compose, not Dockerfile build pack
 1. Create a new **Docker Compose** application/service in Coolify from GitHub `T2DevPub/t2VPN-AdminPanel` on `main`, using `docker-compose.yml`.
-2. Provide only these application credentials as Coolify environment variables:
+2. Provide the following required application credentials as Coolify environment variables:
    - `ADMIN_USERNAME` (e.g. admin)
    - `ADMIN_PASSWORD` (at least 12 characters, strong and unique)
    - `AUTH_SECRET` (at least 32 random characters)
@@ -86,3 +86,85 @@ click **Save changes**, then confirm the green saved message and refresh.
 For Russia: inspect `/api/mobile/ads?country=RU` and make sure the
 placement has `enabled: true` and `primary.provider: "ADFOX"`.
 A saved ad unit does not automatically guarantee ad fill in Android.
+
+## Protecting PostgreSQL and secrets across every Coolify redeploy
+
+**Existing V2 production instances (including `vpn2.t2dev.in`):**
+
+- The original Docker Compose volume names `t2vpn_pgdata` and
+  `t2vpn_secrets` have **not changed**. They are still mounted at the exact
+  same paths. Normal container replacement preserves them.
+- New protection: `REQUIRE_EXISTING_DATA=true` by default. Before PostgreSQL
+  can start, a one-shot `secrets-init` preflight verifies that `PG_VERSION`,
+  the original database password and the original OpenVPN encryption key
+  all exist. If any are missing, **deployment fails rather than starting an
+  empty database or regenerating credentials.**
+- A third persistent volume `t2vpn_backups` is mounted at `/backups` in
+  the app. On **every app startup**, before schema preparation or
+  `prisma db push`, a verified **custom-format `pg_dump`** is saved as
+  `/backups/predeploy-YYYYMMDDTHHMMSSZ-PID.dump`. If pg_dump or archive
+  verification fails, the schema is not modified and the app does not start.
+  These snapshots are stored on the deployment server, not in GitHub.
+- The successful first backup creates `/backups/.database_initialized`.
+  Later startup checks this marker as another guard against losing the
+  original Postgres or secrets volumes. The backup volume **does not**
+  contain the secret encryption key; it must be backed up separately.
+- Neither `prisma migrate reset` nor `prisma db push --accept-data-loss`
+  runs automatically. Prisma still refuses schema changes with data-loss
+  warnings. **This does not replace reviewing new schema changes.**
+- The one-time `db:seed` command is idempotent for the admin account,
+  but it updates the admin's password hash to match `ADMIN_PASSWORD` on
+  every application start; other VPN and ad records are not seeded/reset.
+
+**VERY IMPORTANT BEFORE REDEPLOYING AN ALREADY CONFIGURED INSTANCE:**
+
+1. Keep deploying the **same Coolify resource on the same server**, using the
+   same Docker Compose resource/project identifier. Do not rename its Docker
+   volumes or create a replacement resource and expect the old volumes to
+   attach automatically.
+2. Confirm all three original mounts exist in Coolify:
+   - `t2vpn_pgdata` → `db:/var/lib/postgresql/data`
+   - `t2vpn_secrets` → `db:/run/t2vpn` and `app:/run/t2vpn`
+   New `t2vpn_backups` → `app:/backups` is created automatically by Compose.
+3. Set `REQUIRE_EXISTING_DATA=true` in your Coolify environment variables
+   (this is already the Compose default). Back up **both original volumes**
+   first, especially the encryption key. Keep `AUTH_SECRET` unchanged.
+4. Redeploy `main`. In app Runtime Logs, look for
+   `BACKUP OK: PostgreSQL snapshot verified`, then
+   `Preparing safe PostgreSQL index changes...`,
+   `Initializing PostgreSQL schema...`, and Next.js startup.
+5. Verify `/api/health`, `/api/mobile/servers` and an authenticated
+   Ad Management page. Confirm your known VPN servers and Yandex IDs
+   remain unchanged. In the app container's terminal, `ls -l /backups`
+   should show `predeploy-*.dump`.
+6. Schedule **separate off-server backups** of PostgreSQL and the *original*
+   `t2vpn_secrets` volume. Keep secure encrypted copies on another server,
+   S3-compatible storage or a trustworthy remote destination. Test restoring
+   into an isolated stack. The local snapshots are not disaster recovery.
+7. Monitor free disk space in Coolify. The script deliberately does not
+   delete prior backups; establish a separate reviewed retention plan once
+   remote copies are verified.
+
+**Brand-new empty deployments only:** set `REQUIRE_EXISTING_DATA=false` on
+the first boot, because no Postgres database or keys exist yet. After the app
+starts, a snapshot and marker are written, and the first data is saved, set
+`REQUIRE_EXISTING_DATA=true`. Never set it false as a workaround for a
+missing production volume.
+
+**When the guard blocks a deployment:** do NOT delete the old volumes, reset
+PostgreSQL, generate new secrets or switch off the guard. Find the original
+volume names on the Coolify server (`docker volume ls`), attach the correct
+volumes to the same Compose resource, or restore from verified backups. In
+particular, losing `t2vpn_secrets/profile_key` makes encrypted OpenVPN
+profiles unreadable until the original encryption key is restored.
+
+Coolify documentation:
+- https://coolify.io/docs/core/docker-and-containers
+- https://coolify.io/docs/core/persistent-storage/storage-mounts/overview
+- https://coolify.io/docs/applications/builds/docker-compose
+- https://coolify.io/docs/databases/backups
+
+**Warning:** changing the Coolify resource UUID/project name can produce a
+new set of implicitly project-prefixed named Docker volumes. A code change
+cannot automatically recover data from volumes owned by a different resource.
+Never treat an empty new database as an expected redeployment result.
