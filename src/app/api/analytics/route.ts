@@ -32,9 +32,17 @@ export async function GET(req:Request){
       if(s.outcome==='FAILED')failed++;
       const item=perServer.get(s.serverId);
       if(item){item.sessions++;item.bytesIn+=inbound;item.bytesOut+=outbound;if(s.outcome==='FAILED')item.failed++}
-      const date=new Date(s.connectedAt.getTime()+330*60000).toISOString().slice(0,10);
+      const shifted=new Date(s.connectedAt.getTime()+330*60000).toISOString();
+      const date=period==='today'?shifted.slice(11,13)+':00':shifted.slice(0,10);
       const point=daily.get(date)||{date,sessions:0,bytesIn:0,bytesOut:0};
       point.sessions++;point.bytesIn+=inbound;point.bytesOut+=outbound;daily.set(date,point);
+    }
+    if(period==='today'){
+      const latestHour=Number(new Date(now.getTime()+330*60000).toISOString().slice(11,13));
+      for(let hour=0;hour<=latestHour;hour++){
+        const label=String(hour).padStart(2,'0')+':00';
+        if(!daily.has(label))daily.set(label,{date:label,sessions:0,bytesIn:0,bytesOut:0});
+      }
     }
     const countries=new Map<string,number>(),versions=new Map<string,number>();
     for(const d of installations){
