@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
-import {countryFlag,countryLabel} from '@/lib/country';
+import {CountryLabel} from '@/components/CountryFlag';
 import {AlertCircle,CheckCircle2,ChevronDown,ChevronUp,ExternalLink,Plus,RefreshCw,Save,Settings2,Trash2} from 'lucide-react';
 
 type Provider='ADX'|'META'|'ADFOX';
@@ -174,7 +174,7 @@ export default function AdManagement(){
   {tab==='countries'&&<div className="space-y-4">
    <section className="card p-5 space-y-4"><h2 className="text-lg font-semibold">Country overrides (optional)</h2><p className="text-sm text-slate-500">Use a different ad unit for visitors in a particular country. Without an override, the normal placement unit applies.</p>
     <div className="grid gap-3 sm:grid-cols-3">
-     <label className="text-sm">Country code<input list="ad-countries" maxLength={2} className="input mt-1 w-full uppercase" placeholder="RU" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value.toUpperCase()}))}/><datalist id="ad-countries">{regions.map(([code,name])=><option key={code} value={code}>{countryFlag(code)} {name}</option>)}</datalist></label>
+     <label className="text-sm">Country code<input list="ad-countries" maxLength={2} className="input mt-1 w-full uppercase" placeholder="RU" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value.toUpperCase()}))}/><datalist id="ad-countries">{regions.map(([code,name])=><option key={code} value={code}>{name} ({code})</option>)}</datalist></label>
      <label className="text-sm">Placement<select className="input mt-1 w-full" value={newRule.placement} onChange={e=>setNewRule(v=>({...v,placement:e.target.value as Key,unitRef:''}))}>{definitions.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}</select></label>
      <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER',newRule.placement==='rewarded_unlock')}</select></label>
     </div><button type="button" className="ui-btn ui-btn-primary" onClick={addRule}><Plus size={16}/>Add country rule</button>
@@ -182,11 +182,11 @@ export default function AdManagement(){
    <section className="card p-5 space-y-3"><h2 className="font-semibold">Existing rules ({data.countryRules.length})</h2>
     {data.countryRules.length===0&&<p className="text-sm text-slate-500">No country rules. Your normal page assignments will apply everywhere.</p>}
     {data.countryRules.map(rule=><div key={rule.id} className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 py-3 text-sm">
-     <div><p className="font-semibold">{countryLabel(rule.country,regions.find(r=>r[0]===rule.country)?.[1])} · {labelFor(rule.placement)}</p><p className="text-xs text-slate-500 mt-1">{unitMap.get(rule.unitRef)?.name||'Unknown ad unit'}</p></div>
+     <div><p className="font-semibold"><CountryLabel code={rule.country} name={regions.find(r=>r[0]===rule.country)?.[1]}/> · {labelFor(rule.placement)}</p><p className="text-xs text-slate-500 mt-1">{unitMap.get(rule.unitRef)?.name||'Unknown ad unit'}</p></div>
      <div className="flex items-center gap-3"><label className="flex items-center gap-2 text-xs text-slate-500"><span>{rule.enabled?'On':'Off'}</span><input aria-label={'Enable '+rule.country+' '+rule.placement} className="ui-switch" type="checkbox" checked={rule.enabled} onChange={e=>setData(d=>({...d,countryRules:d.countryRules.map(r=>r.id===rule.id?{...r,enabled:e.target.checked}:r)}))}/></label><button type="button" aria-label={'Delete '+rule.country+' '+rule.placement} className="ui-icon-danger" onClick={()=>setData(d=>({...d,countryRules:d.countryRules.filter(r=>r.id!==rule.id)}))}><Trash2 size={16}/></button></div>
     </div>)}
    </section>
-   <section className="card p-4 flex flex-wrap items-center gap-3"><p className="text-sm text-slate-600">Country API preview · {countryLabel(previewCountry)}</p><input className="input w-24" aria-label="Preview country" maxLength={2} value={previewCountry} onChange={e=>setPreviewCountry(e.target.value.toUpperCase())}/><a className={'ui-btn ui-btn-secondary '+(!countryValid?'pointer-events-none opacity-50':'')} href={countryValid?'/api/mobile/ads?country='+previewCountry:'#'} target="_blank" rel="noreferrer"><ExternalLink size={15}/>View API</a></section>
+   <section className="card p-4 flex flex-wrap items-center gap-3"><p className="text-sm text-slate-600">Country API preview · <CountryLabel code={previewCountry}/></p><input className="input w-24" aria-label="Preview country" maxLength={2} value={previewCountry} onChange={e=>setPreviewCountry(e.target.value.toUpperCase())}/><a className={'ui-btn ui-btn-secondary '+(!countryValid?'pointer-events-none opacity-50':'')} href={countryValid?'/api/mobile/ads?country='+previewCountry:'#'} target="_blank" rel="noreferrer"><ExternalLink size={15}/>View API</a></section>
    <p className="text-xs text-slate-500">Android must request the appropriate user country code. Changes are not applied until you click Save changes.</p>
   </div>}
   <section className="card p-4 space-y-4">
