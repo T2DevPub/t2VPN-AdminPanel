@@ -111,3 +111,45 @@ Google Play Billing, AdMob SSV, telemetry gateway authentication and VPN server 
 7. Verify both Free and Plus routing, rewarded 30-minute expiration, maintenance, country ad settings, consent, reconnect, and device diagnostics.
 8. Test a complete VPN handshake. Dashboard live usage requires a trusted VPN gateway collector; Android telemetry alone will not populate network bandwidth.
 9. Publish a staged Android release before switching all production users. Do **not** bundle `TELEMETRY_INGEST_SECRET`, `AUTH_SECRET` or Google service account credentials in the APK.
+
+## Yandex Advertising Network: all five mobile ad unit formats
+
+The admin UI's `Yandex Ads / Adfox` provider is encoded as `ADFOX` in the
+existing Android API contract to avoid breaking clients. Under
+**Ad Management → Ad unit IDs**, the "Yandex ad units · Quick add" section can
+store all five Yandex Advertising Network ad formats:
+
+- `APP_OPEN` — for `app_open` placement
+- `REWARDED` — inventory record only (do not assign to verified Plus unlock)
+- `INTERSTITIAL` — for connection, disconnection or free-server interstitials
+- `NATIVE` — for region selection
+- `BANNER` — for home and usage statistics
+
+Unit IDs use the `R-M-<page>-<block>` format and are **stored in PostgreSQL**,
+not in GitHub source. Existing ad units are not overwritten by Quick add;
+you may enter fewer than five IDs and add remaining formats later. After
+adding, choose the actual placement assignments and click **Save changes**.
+
+**Yandex versus Adfox:** Yandex Mobile Ads SDK supports all five mobile
+formats, but Adfox *direct sales* applies only to Banner, Native and
+Interstitial. App Open and Rewarded use eligible Yandex Advertising Network
+inventory; they are not direct-sales Adfox formats.
+
+**Secure rewarded Plus restriction:** Yandex Mobile Ads does not support
+server-side reward verification. This backend only authorizes T2VPN's
+30-minute Plus unlock through Google rewarded SSV. Yandex Rewarded units may
+be stored in the library but cannot be selected for the `rewarded_unlock`
+placement or country override, and `/api/mobile/ads` filters out any older
+unsupported Yandex reward assignment.
+
+Yandex App Open is supported in backend placement configuration, but Android
+must actually implement `ADFOX` + `APP_OPEN` through the Yandex
+`AppOpenAdLoader` / associated documented lifecycle API. Older Android
+builds may still force Google as their App Open provider. Updating backend
+settings does **not** update deployed Android applications.
+
+Yandex documentation:
+- https://ads.yandex.com/helpcenter/en/dev/android/app-open-ad
+- https://ads.yandex.com/helpcenter/en/dev/android/rewarded
+- https://ads.yandex.com/helpcenter/en/monetization/adfox/connection
+- https://ads.yandex.com/helpcenter/en/support/faq/sdk-integration
