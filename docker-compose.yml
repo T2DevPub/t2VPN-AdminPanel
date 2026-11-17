@@ -3,9 +3,10 @@ services:
     image: alpine:3.21
     restart: "no"
     environment:
-      # After initial setup, set REQUIRE_EXISTING_DATA=true in Coolify.
+      # Existing production deployments fail closed by default.
+      # Set REQUIRE_EXISTING_DATA=false ONLY for a brand-new empty installation.
       # Refuse to start with an empty database or regenerated encryption keys.
-      REQUIRE_EXISTING_DATA: ${REQUIRE_EXISTING_DATA:-false}
+      REQUIRE_EXISTING_DATA: ${REQUIRE_EXISTING_DATA:-true}
     volumes:
       # Keep the ORIGINAL volume names; changing them makes existing data invisible.
       - t2vpn_secrets:/secrets
