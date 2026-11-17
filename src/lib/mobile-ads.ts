@@ -21,11 +21,13 @@ export function publicAdConfig(c:AdConfig,countryCode:string){
  const units=new Map(c.units.map(u=>[u.id,u]));
  const unit=(id:string,placement:Key)=>{
   const u=units.get(id);
-  return u&&(placement!=='rewarded_unlock'||u.provider==='ADX')&&u.enabled&&c.providers[u.provider]?.enabled&&u.unitId
+  return u&&u.enabled&&c.providers[u.provider]?.enabled&&u.unitId
    ?{provider:u.provider,format:u.format,unitId:u.unitId}:null;
  };
  return {schemaVersion:2,adsEnabled:c.adsEnabled,providers:Object.fromEntries(Object.entries(c.providers).map(([provider,x])=>[provider,{enabled:x.enabled,appId:x.appId}])),
-  rewardedUnlockEnabled:c.rewardedUnlockEnabled,appOpenCooldownMinutes:c.appOpenCooldownMinutes,
+  rewardedUnlockEnabled:c.rewardedUnlockEnabled,
+  // Yandex has client-only reward callbacks; server-side Plus grants remain Google SSV only.
+  verifiedPlusRewardProvider:'ADX',appOpenCooldownMinutes:c.appOpenCooldownMinutes,
   placements:c.placements.map(p=>{
    const override=c.countryRules.find(r=>r.country===country&&r.placement===p.key&&r.enabled);
    const primary=(override?.unitRef?unit(override.unitRef,p.key):null)||unit(p.unitRef,p.key);
