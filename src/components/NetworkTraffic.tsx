@@ -23,7 +23,7 @@ export default function NetworkTraffic(){
  const chartData=filtered.map(s=>({name:serverLocation(s.country,s.city,s.countryCode).slice(0,25),upload:+(s.bytesIn/1024**3).toFixed(3),download:+(s.bytesOut/1024**3).toFixed(3)})).sort((a,b)=>(b.upload+b.download)-(a.upload+a.download)).slice(0,12);
  return <div className="mx-auto max-w-7xl space-y-5 pb-10">
   <header className="flex flex-wrap items-center justify-between gap-3">
-   <div><p className="text-xs uppercase font-semibold tracking-widest text-slate-500">VPN infrastructure</p><h1 className="mt-2 text-3xl font-semibold text-slate-900">Network Traffic</h1><p className="mt-2 text-sm text-slate-500">Gateway-reported heartbeats and measured VPN traffic; defaults to today (IST).</p></div>
+   <div><p className="text-xs uppercase font-semibold tracking-widest text-slate-500">VPN infrastructure</p><h1 className="mt-2 text-2xl font-semibold text-slate-900">Network Traffic</h1><p className="mt-2 text-sm text-slate-500">Gateway-reported heartbeats and measured VPN traffic; defaults to today (IST).</p></div>
    <button type="button" onClick={()=>{setBusy(true);void load()}} disabled={busy} className="ui-btn ui-btn-secondary"><RefreshCw size={16}/>{busy?'Refreshing…':'Refresh'}</button>
   </header>
   <div className="card p-4 flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-slate-500 mr-1">Period · IST</span>
