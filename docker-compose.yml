@@ -2,16 +2,45 @@ services:
   secrets-init:
     image: alpine:3.21
     restart: "no"
+    environment:
+      # After initial setup, set REQUIRE_EXISTING_DATA=true in Coolify.
+      # Refuse to start with an empty database or regenerated encryption keys.
+      REQUIRE_EXISTING_DATA: ${REQUIRE_EXISTING_DATA:-false}
     volumes:
+      # Keep the ORIGINAL volume names; changing them makes existing data invisible.
       - t2vpn_secrets:/secrets
+      - t2vpn_pgdata:/pgdata:ro
+      - t2vpn_backups:/backups:ro
     command: >
-      sh -ec 'if [ ! -s /secrets/db_password ]; then
-      umask 077; head -c 48 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/db_password;
+      sh -ec '
+      if [ "$REQUIRE_EXISTING_DATA" = "true" ] &&
+         { [ ! -s /pgdata/PG_VERSION ] ||
+           [ ! -s /secrets/db_password ] ||
+           [ ! -s /secrets/profile_key ]; }; then
+        echo "STORAGE GUARD: Existing PostgreSQL data and original secrets are required. Stop: refusing an empty/replaced volume." >&2;
+        exit 1;
+      fi;
+      if [ -f /backups/.database_initialized ] &&
+         { [ ! -s /pgdata/PG_VERSION ] ||
+           [ ! -s /secrets/db_password ] ||
+           [ ! -s /secrets/profile_key ]; }; then
+        echo "STORAGE GUARD: A previously initialized database or original secrets are missing. Stop: restore original volumes." >&2;
+        exit 1;
+      fi;
+      if [ -s /pgdata/PG_VERSION ] &&
+         { [ ! -s /secrets/db_password ] ||
+           [ ! -s /secrets/profile_key ]; }; then
+        echo "STORAGE GUARD: PostgreSQL already contains data but its original credentials/encryption key are missing. Refusing regeneration." >&2;
+        exit 1;
+      fi;
+      if [ ! -s /secrets/db_password ]; then
+        umask 077; head -c 48 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/db_password;
       fi;
       if [ ! -s /secrets/profile_key ]; then
-      umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/profile_key;
+        umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n" > /secrets/profile_key;
       fi;
-      chmod 644 /secrets/db_password /secrets/profile_key'
+      chmod 644 /secrets/db_password /secrets/profile_key
+      '
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -52,6 +81,7 @@ services:
       NODE_ENV: production
     volumes:
       - t2vpn_secrets:/run/t2vpn:ro
+      - t2vpn_backups:/backups
     expose:
       - "3000"
     networks:
@@ -60,6 +90,7 @@ services:
 volumes:
   t2vpn_pgdata:
   t2vpn_secrets:
+  t2vpn_backups:
 networks:
   private:
     internal: true
