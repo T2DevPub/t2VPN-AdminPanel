@@ -116,8 +116,8 @@ Google Play Billing, AdMob SSV, telemetry gateway authentication and VPN server 
 
 The admin UI's `Yandex Ads / Adfox` provider is encoded as `ADFOX` in the
 existing Android API contract to avoid breaking clients. Under
-**Ad Management → Ad unit IDs**, the "Yandex ad units · Quick add" section can
-store all five Yandex Advertising Network ad formats:
+**Ad Management → Ad unit IDs**, the standard **Add an ad unit** form
+supports all five Yandex Advertising Network ad formats:
 
 - `APP_OPEN` — for `app_open` placement
 - `REWARDED` — inventory record only (do not assign to verified Plus unlock)
@@ -126,9 +126,9 @@ store all five Yandex Advertising Network ad formats:
 - `BANNER` — for home and usage statistics
 
 Unit IDs use the `R-M-<page>-<block>` format and are **stored in PostgreSQL**,
-not in GitHub source. Existing ad units are not overwritten by Quick add;
-you may enter fewer than five IDs and add remaining formats later. After
-adding, choose the actual placement assignments and click **Save changes**.
+not in GitHub source. Enter each unit separately using its provider,
+format, name and ID; existing units remain unchanged. Then choose its
+placement assignments and click **Save changes**.
 
 **Yandex versus Adfox:** Yandex Mobile Ads SDK supports all five mobile
 formats, but Adfox *direct sales* applies only to Banner, Native and
@@ -180,3 +180,16 @@ Never interpret a phone/app heartbeat as an established VPN tunnel.
 telemetry** through `POST /api/telemetry`. That endpoint remains secret-protected
 and the token must never be included in Android. If no gateway collector is
 connected, trusted connection and bandwidth counts are not estimated.
+
+## Dashboard operational UX (17 Nov 2026)
+
+Overview, Analytics, Network Traffic and Users & Devices default to **Today
+(IST)**, and refresh while visible every 15 seconds. Analytics shows today's
+recorded sessions by hour. Country labels are standardized to flag + full name
++ ISO code throughout operations screens, with city and original internal
+server name retained where useful.
+
+These are **presentation and reporting** changes. The backend only shows
+gateway-verified connected VPN sessions if your trusted OpenVPN gateway sends
+CONNECT, HEARTBEAT and DISCONNECT events to `/api/telemetry`. The distinct
+mobile `APP_HEARTBEAT` event reports application presence, not an active VPN.
