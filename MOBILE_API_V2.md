@@ -29,7 +29,7 @@ These variables are forwarded to the app container through `docker-compose.yml`.
 `GET /api/mobile/servers` returns `{schemaVersion:2,servers:[{id,name,country,countryCode,city,host,ipAddress,enabled,tier,isPlusOnly,profiles:[{slot,protocol,port}],requiresAuthorization}]}`.
 Read only V2 PostgreSQL. Disabled servers do not appear; no V1 fallback or fake/demo server data. If no server exists in the V2 dashboard, the array is empty.
 
-`GET /api/mobile/ads` returns `{schemaVersion:2,adsEnabled,providers,rewardedUnlockEnabled,appOpenCooldownMinutes,placements:[{key,enabled,primary:{provider,format,unitId}|null,fallback:{provider,format,unitId}|null}]}`. Available placement keys:
+`GET /api/mobile/ads` returns `{schemaVersion:2,adsEnabled,providers,rewardedUnlockEnabled,appOpenCooldownMinutes:0,placements:[{key,enabled,primary:{provider,format,unitId}|null,fallback:{provider,format,unitId}|null}]}`. Available placement keys:
 `app_open`, `home_banner`, `usage_banner`, `region_native`, `rewarded_unlock`, `connect_interstitial`, `disconnect_interstitial`, `free_server_interstitial`.
 A field being configured does **not** guarantee that the Android client has the matching ad SDK; avoid activating unsupported providers or formats.
 
@@ -209,3 +209,23 @@ These are **presentation and reporting** changes. The backend only shows
 gateway-verified connected VPN sessions if your trusted OpenVPN gateway sends
 CONNECT, HEARTBEAT and DISCONNECT events to `/api/telemetry`. The distinct
 mobile `APP_HEARTBEAT` event reports application presence, not an active VPN.
+
+## App Open ad lifecycle (18 November 2026)
+
+The Admin Panel no longer provides an App Open cooldown setting. The
+`app_open` placement's existing enabled/disabled switch and primary/fallback
+unit assignment remain the only V2 controls. Existing Ad Management records
+can contain a legacy `appOpenCooldownMinutes` value; it is ignored on read
+and discarded the next time the administrator saves their settings. Other
+saved ad units, placements and country overrides are preserved.
+
+For compatibility with Android builds that still parse the existing field,
+`GET /api/mobile/ads` returns `appOpenCooldownMinutes: 0` (no enforced V2
+cooldown). **Android must honor 0 by removing its old 30-minute restriction**.
+If the Android client hardcodes a 30-minute timer, defaults absent/zero values
+to 30, or blocks App Open during an old cooldown, a new Android build is
+required. Do not fake ad impressions: request/load in advance, and display
+only on an eligible launch/foreground transition when the SDK confirms a
+ready ad, user consent and provider settings permit it. Avoid presenting an
+App Open ad over Android VPN permission dialogs, other full-screen ads, or
+ongoing connection prompts. No ad is guaranteed on every open.
