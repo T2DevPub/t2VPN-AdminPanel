@@ -1,18 +1,20 @@
 import {NextResponse} from 'next/server';
 import {db} from '@/lib/db';
 import {getSession} from '@/lib/auth';
+import {istTodayStart} from '@/lib/time-period';
 export const dynamic='force-dynamic';
 export async function GET(req:Request){
  if(!await getSession())return NextResponse.json({error:'Unauthorized'},{status:401});
  const u=new URL(req.url);const filter=u.searchParams.get('filter')||'all';const q=(u.searchParams.get('q')||'').slice(0,100);
  const page=Math.max(1,Math.min(10000,Number(u.searchParams.get('page'))||1));const limit=25;
- const where:any={...(filter==='plus'?{plan:'PLUS'}:filter==='revoked'?{revoked:true}:filter==='active'?{lastSeenAt:{gte:new Date(Date.now()-24*3600000)}}:{}),...(q?{OR:[{installationId:{contains:q,mode:'insensitive'}},{deviceModel:{contains:q,mode:'insensitive'}},{countryCode:{contains:q,mode:'insensitive'}}]}:{})};
- const [total,items,installations,plus,activeToday,revoked,countries,versions]=await Promise.all([
+ const todayStart=istTodayStart(),recentStart=new Date(Date.now()-60000);
+ const where:any={...(filter==='plus'?{plan:'PLUS'}:filter==='revoked'?{revoked:true}:filter==='active'?{lastSeenAt:{gte:todayStart}}:{}),...(q?{OR:[{installationId:{contains:q,mode:'insensitive'}},{deviceModel:{contains:q,mode:'insensitive'}},{countryCode:{contains:q,mode:'insensitive'}}]}:{})};
+ const [total,items,installations,plus,activeToday,activeNow,revoked,countries,versions]=await Promise.all([
  db.appInstallation.count({where}),db.appInstallation.findMany({where,orderBy:{lastSeenAt:'desc'},take:limit,skip:(page-1)*limit,select:{id:true,installationId:true,deviceModel:true,manufacturer:true,androidVersion:true,appVersion:true,countryCode:true,plan:true,subscriptionExpiresAt:true,revoked:true,firstSeenAt:true,lastSeenAt:true}}),
- db.appInstallation.count(),db.appInstallation.count({where:{plan:'PLUS'}}),db.appInstallation.count({where:{lastSeenAt:{gte:new Date(Date.now()-86400000)}}}),db.appInstallation.count({where:{revoked:true}}),
- db.appInstallation.groupBy({by:['countryCode'],_count:{_all:true},orderBy:{_count:{countryCode:'desc'}},take:20}),
- db.appInstallation.groupBy({by:['appVersion'],_count:{_all:true},orderBy:{_count:{appVersion:'desc'}},take:12})]);
- return NextResponse.json({total,page,limit,items,summary:{installations,plus,activeToday,revoked},countries:countries.map(x=>({name:x.countryCode||'Unknown',count:x._count._all})),versions:versions.map(x=>({name:x.appVersion||'Unknown',count:x._count._all}))});
+ db.appInstallation.count(),db.appInstallation.count({where:{plan:'PLUS'}}),db.appInstallation.count({where:{lastSeenAt:{gte:todayStart}}}),db.appInstallation.count({where:{lastSeenAt:{gte:recentStart}}}),db.appInstallation.count({where:{revoked:true}}),
+ db.appInstallation.groupBy({by:['countryCode'],where:{lastSeenAt:{gte:todayStart}},_count:{_all:true},orderBy:{_count:{countryCode:'desc'}},take:20}),
+ db.appInstallation.groupBy({by:['appVersion'],where:{lastSeenAt:{gte:todayStart}},_count:{_all:true},orderBy:{_count:{appVersion:'desc'}},take:12})]);
+ return NextResponse.json({total,page,limit,items,summary:{installations,plus,activeToday,activeNow,revoked},timezone:'Asia/Kolkata',countries:countries.map(x=>({name:x.countryCode||'Unknown',count:x._count._all})),versions:versions.map(x=>({name:x.appVersion||'Unknown',count:x._count._all}))});
 }
 export async function PATCH(req:Request){
  const actor=await getSession();if(!actor)return NextResponse.json({error:'Unauthorized'},{status:401});
