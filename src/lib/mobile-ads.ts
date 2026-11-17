@@ -27,7 +27,7 @@ export function publicAdConfig(c:AdConfig,countryCode:string){
  return {schemaVersion:2,adsEnabled:c.adsEnabled,providers:Object.fromEntries(Object.entries(c.providers).map(([provider,x])=>[provider,{enabled:x.enabled,appId:x.appId}])),
   rewardedUnlockEnabled:c.rewardedUnlockEnabled,
   // Yandex has client-only reward callbacks; server-side Plus grants remain Google SSV only.
-  verifiedPlusRewardProvider:'ADX',appOpenCooldownMinutes:c.appOpenCooldownMinutes,
+  verifiedPlusRewardProvider:'ADX',verifiedPlusUnlockAvailable:eligibleRewardedUnitIds(c).size>0,appOpenCooldownMinutes:c.appOpenCooldownMinutes,
   placements:c.placements.map(p=>{
    const override=c.countryRules.find(r=>r.country===country&&r.placement===p.key&&r.enabled);
    const primary=(override?.unitRef?unit(override.unitRef,p.key):null)||unit(p.unitRef,p.key);
