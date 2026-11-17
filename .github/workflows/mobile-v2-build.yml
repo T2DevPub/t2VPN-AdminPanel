@@ -5,6 +5,7 @@ on:
       - main
       - 'feature/v2-android-backend-*'
       - 'fix/coolify-safe-prisma-unique-index-*'
+      - 'fix/ad-management-save-simplify-*'
   pull_request:
     branches: [main]
 
@@ -31,7 +32,7 @@ jobs:
       AUTH_SECRET: test-only-placeholder-do-not-use-in-production-abcdefghijk
       ADMIN_USERNAME: ci
       ADMIN_PASSWORD: placeholder-only-for-ci
-      ADMIN_PUBLIC_ORIGIN: http://localhost:3000
+      ADMIN_PUBLIC_ORIGIN: https://vpn2.t2dev.in
       VPN_PROFILE_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       MOBILE_PROVISIONING_ENABLED: 'false'
     steps:
