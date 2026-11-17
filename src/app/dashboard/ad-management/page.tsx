@@ -9,7 +9,7 @@ type Key='app_open'|'home_banner'|'usage_banner'|'region_native'|'rewarded_unloc
 type Unit={id:string;name:string;provider:Provider;format:Format;unitId:string;enabled:boolean};
 type Placement={key:Key;enabled:boolean;unitRef:string;fallbackRef:string};
 type Rule={id:string;country:string;placement:Key;unitRef:string;enabled:boolean};
-type Config={version:2;adsEnabled:boolean;providers:Record<Provider,{enabled:boolean;appId:string}>;units:Unit[];placements:Placement[];countryRules:Rule[];appOpenCooldownMinutes:number;rewardedUnlockEnabled:boolean};
+type Config={version:2;adsEnabled:boolean;providers:Record<Provider,{enabled:boolean;appId:string}>;units:Unit[];placements:Placement[];countryRules:Rule[];rewardedUnlockEnabled:boolean};
 type Tab='placements'|'units'|'countries';
 const providers:Provider[]=['ADX','META','ADFOX'];
 const names:Record<Provider,string>={ADX:'Google AdMob / AdX',META:'Meta Audience Network',ADFOX:'Yandex Ads / Adfox'};
@@ -23,7 +23,7 @@ const definitions:{key:Key;label:string;format:Format;detail:string}[]=[
  {key:'disconnect_interstitial',label:'After disconnection',format:'INTERSTITIAL',detail:'When the VPN disconnects'},
  {key:'free_server_interstitial',label:'Free server selection',format:'INTERSTITIAL',detail:'After selecting a Free server'}
 ];
-const defaults:Config={version:2,adsEnabled:false,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:definitions.map(d=>({key:d.key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
+const defaults:Config={version:2,adsEnabled:false,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:definitions.map(d=>({key:d.key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],rewardedUnlockEnabled:false};
 const regions=[['RU','Russia'],['KZ','Kazakhstan'],['BY','Belarus'],['UZ','Uzbekistan'],['IN','India'],['US','United States'],['GB','United Kingdom'],['DE','Germany'],['FR','France'],['BR','Brazil']];
 const fmtList:Format[]=['BANNER','NATIVE','INTERSTITIAL','REWARDED','APP_OPEN'];
 const labelFor=(key:Key)=>definitions.find(d=>d.key===key)?.label||key;
@@ -194,7 +194,7 @@ export default function AdManagement(){
    <button type="button" aria-expanded={advanced} className="w-full flex items-center justify-between gap-2 text-sm font-semibold" onClick={()=>setAdvanced(v=>!v)}><span className="flex items-center gap-2"><Settings2 size={17}/>Advanced settings</span>{advanced?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</button>
    {advanced&&<div className="space-y-4 border-t border-slate-100 pt-4">
     <label className="flex justify-between items-center gap-4 text-sm">Enable Google-verified Plus unlock<input type="checkbox" className="ui-switch" checked={data.rewardedUnlockEnabled} onChange={e=>setData(d=>({...d,rewardedUnlockEnabled:e.target.checked}))}/></label>
-    <label className="block max-w-xs text-sm">App Open cooldown (minutes)<input type="number" min={0} max={1440} className="input mt-2 w-full" value={data.appOpenCooldownMinutes} onChange={e=>setData(d=>({...d,appOpenCooldownMinutes:Number(e.target.value)}))}/></label>
+    <p className="text-xs text-slate-500">App Open ads use the normal app-launch and foreground lifecycle. No custom cooldown is configured in V2.</p>
     <div className="grid gap-3 lg:grid-cols-3">{providers.map(provider=><label key={provider} className="block text-sm">{names[provider]} · Optional provider app ID<input className="input mt-1 w-full" value={data.providers[provider].appId} onChange={e=>setData(d=>({...d,providers:{...d.providers,[provider]:{...d.providers[provider],appId:e.target.value}}}))} placeholder="Only if your SDK requires one"/></label>)}</div>
     <p className="text-xs text-slate-500">Yandex ad units typically use their R-M- placement ID; do not enter that ID in the optional provider app ID field. Verified 30-minute Plus unlock requires Google server-side verification. Yandex rewarded units can still be used for non-premium ad rewards.</p>
    </div>}
