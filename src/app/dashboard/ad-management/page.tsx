@@ -11,7 +11,7 @@ type Rule={id:string;country:string;placement:Key;unitRef:string;enabled:boolean
 type Config={version:2;adsEnabled:boolean;providers:Record<Provider,{enabled:boolean;appId:string}>;units:Unit[];placements:Placement[];countryRules:Rule[];appOpenCooldownMinutes:number;rewardedUnlockEnabled:boolean};
 type Tab='placements'|'units'|'countries';
 const providers:Provider[]=['ADX','META','ADFOX'];
-const names:Record<Provider,string>={ADX:'Google AdMob / AdX',META:'Meta Audience Network',ADFOX:'Yandex / Adfox'};
+const names:Record<Provider,string>={ADX:'Google AdMob / AdX',META:'Meta Audience Network',ADFOX:'Yandex Ads / Adfox'};
 const definitions:{key:Key;label:string;format:Format;detail:string}[]=[
  {key:'home_banner',label:'Home banner',format:'BANNER',detail:'On the VPN home screen'},
  {key:'usage_banner',label:'Usage statistics banner',format:'BANNER',detail:'On the usage screen'},
@@ -26,6 +26,8 @@ const defaults:Config={version:2,adsEnabled:false,providers:{ADX:{enabled:false,
 const regions=[['RU','Russia'],['KZ','Kazakhstan'],['BY','Belarus'],['UZ','Uzbekistan'],['IN','India'],['US','United States'],['GB','United Kingdom'],['DE','Germany'],['FR','France'],['BR','Brazil']];
 const fmtList:Format[]=['BANNER','NATIVE','INTERSTITIAL','REWARDED','APP_OPEN'];
 const labelFor=(key:Key)=>definitions.find(d=>d.key===key)?.label||key;
+const yandexLabels:Record<Format,string>={APP_OPEN:'App Open',REWARDED:'Rewarded',INTERSTITIAL:'Interstitial',NATIVE:'Native',BANNER:'Banner'};
+const yandexOrder:Format[]=['APP_OPEN','REWARDED','INTERSTITIAL','NATIVE','BANNER'];
 
 export default function AdManagement(){
  const [data,setData]=useState<Config>(defaults);
@@ -39,6 +41,7 @@ export default function AdManagement(){
  const [previewCountry,setPreviewCountry]=useState('RU');
  const [newUnit,setNewUnit]=useState({name:'',provider:'ADFOX' as Provider,format:'BANNER' as Format,unitId:''});
  const [newRule,setNewRule]=useState({country:'RU',placement:'home_banner' as Key,unitRef:''});
+ const [yandexUnitInputs,setYandexUnitInputs]=useState<Record<Format,string>>({APP_OPEN:'',REWARDED:'',INTERSTITIAL:'',NATIVE:'',BANNER:''});
  const dirty=saved!==null&&JSON.stringify(data)!==saved;
  const unitMap=useMemo(()=>new Map(data.units.map(u=>[u.id,u])),[data.units]);
  const countryValid=/^[A-Z]{2}$/.test(previewCountry);
@@ -77,9 +80,9 @@ export default function AdManagement(){
  function changePlacement(key:Key,patch:Partial<Placement>){
   setData(d=>({...d,placements:d.placements.map(p=>p.key===key?{...p,...patch}:p)}));
  }
- function unitOptions(format:Format){
+ function unitOptions(format:Format,plusUnlock=false){
   return providers.map(provider=>{
-   const eligible=data.units.filter(u=>u.provider===provider&&u.format===format);
+   const eligible=data.units.filter(u=>u.provider===provider&&u.format===format&&(!plusUnlock||u.provider==='ADX'));
    if(eligible.length===0)return null;
    return <optgroup key={provider} label={names[provider]}>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{!u.enabled?' (disabled)':''}</option>)}</optgroup>;
   });
@@ -87,7 +90,6 @@ export default function AdManagement(){
  function addUnit(){
   const name=newUnit.name.trim(),unitId=newUnit.unitId.trim();
   if(!name||!unitId){setNotice({kind:'error',text:'Enter an ad unit name and its ID.'});return}
-  if(newUnit.provider==='ADFOX'&&['APP_OPEN','REWARDED'].includes(newUnit.format)){setNotice({kind:'error',text:'Adfox direct-sales units use Banner, Native or Interstitial.'});return}
   if(data.units.some(u=>u.provider===newUnit.provider&&u.unitId===unitId)){
    setNotice({kind:'error',text:'This provider and ad-unit ID are already in the library.'});return
   }
@@ -95,6 +97,22 @@ export default function AdManagement(){
   setData(d=>({...d,units:[...d.units,unit]}));
   setNewUnit({name:'',provider:newUnit.provider,format:'BANNER',unitId:''});
   setNotice({kind:'info',text:'Ad unit added. Assign it to a placement, then Save changes.'});
+ }
+ function addYandexUnits(){
+  const entries=yandexOrder.map(format=>({format,unitId:yandexUnitInputs[format].trim()})).filter(x=>x.unitId);
+  if(entries.length===0){setNotice({kind:'error',text:'Enter at least one Yandex ad unit ID.'});return}
+  if(entries.some(x=>!/^R-M-\\d+-\\d+$/.test(x.unitId))){setNotice({kind:'error',text:'Yandex mobile IDs should look like R-M-1234567-1. Correct any invalid IDs before adding.'});return}
+  if(new Set(entries.map(x=>x.unitId)).size!==entries.length){setNotice({kind:'error',text:'Use a separate mobile unit ID for each Yandex ad format.'});return}
+  const conflicts=entries.filter(e=>data.units.some(u=>u.provider==='ADFOX'&&u.unitId===e.unitId&&u.format!==e.format));
+  if(conflicts.length){setNotice({kind:'error',text:'One of these Yandex unit IDs already exists under a different format.'});return}
+  const additions:Unit[]=entries.filter(e=>!data.units.some(u=>u.provider==='ADFOX'&&u.unitId===e.unitId)).map((e,i)=>({
+   id:'unit_yandex_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),
+   name:'Yandex '+yandexLabels[e.format],provider:'ADFOX',format:e.format,unitId:e.unitId,enabled:true
+  }));
+  if(!additions.length){setNotice({kind:'info',text:'Those Yandex units are already in your library.'});return}
+  setData(d=>({...d,units:[...d.units,...additions]}));
+  setYandexUnitInputs({APP_OPEN:'',REWARDED:'',INTERSTITIAL:'',NATIVE:'',BANNER:''});
+  setNotice({kind:'info',text:additions.length+' Yandex ad unit(s) added. Choose their placement(s), then click Save changes.'});
  }
  function removeUnit(id:string){
   const u=unitMap.get(id);if(!u||!window.confirm('Remove '+u.name+'? Its placement and country assignments will also be cleared.'))return;
@@ -123,9 +141,10 @@ export default function AdManagement(){
     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer"><span>{p.enabled?'On':'Off'}</span><input aria-label={def.label+' advertising'} type="checkbox" className="ui-switch" checked={p.enabled} onChange={e=>changePlacement(def.key,{enabled:e.target.checked})}/></label>
    </div>
    {p.enabled&&<div className="grid gap-3 sm:grid-cols-2">
-    <label className="block text-xs text-slate-600">Ad unit<select aria-label={def.label+' primary ad unit'} className="input mt-1 w-full" value={p.unitRef} onChange={e=>changePlacement(def.key,{unitRef:e.target.value})}><option value="">Choose an ad unit</option>{unitOptions(def.format)}</select></label>
+    <label className="block text-xs text-slate-600">Ad unit<select aria-label={def.label+' primary ad unit'} className="input mt-1 w-full" value={p.unitRef} onChange={e=>changePlacement(def.key,{unitRef:e.target.value})}><option value="">Choose an ad unit</option>{unitOptions(def.format,def.key==='rewarded_unlock')}</select></label>
     <label className="block text-xs text-slate-600">Fallback (optional)<select aria-label={def.label+' fallback ad unit'} className="input mt-1 w-full" value={p.fallbackRef} onChange={e=>changePlacement(def.key,{fallbackRef:e.target.value})}><option value="">No fallback</option>{unitOptions(def.format)}</select></label>
    </div>}
+   {def.key==='rewarded_unlock'&&<p className="text-xs text-amber-700">Plus unlock requires server-verified Google rewarded ads. A Yandex rewarded unit can be stored in the library, but cannot be assigned here.</p>}
    {ineligible&&<p className="flex gap-2 items-start text-xs text-amber-700"><AlertCircle size={14} className="shrink-0 mt-0.5"/>Choose an enabled unit from an enabled network. Otherwise no ad will load.</p>}
   </div>;
  }
@@ -157,17 +176,31 @@ export default function AdManagement(){
    <div className="flex justify-end"><button type="button" onClick={()=>setTab('countries')} className="ui-btn ui-btn-secondary">Optional: Country rules</button></div>
   </div>}
   {tab==='units'&&<div className="space-y-4">
+   <section className="card p-5 space-y-4">
+    <div><h2 className="text-lg font-semibold">Yandex ad units · Quick add</h2>
+     <p className="text-sm text-slate-500 mt-1">Enter any or all five Yandex Advertising Network IDs from your publisher dashboard. Blank formats are skipped; existing units are kept.</p></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+     {yandexOrder.map(format=><label className="block text-sm" key={format}>{yandexLabels[format]} ad unit
+      <input className="input mt-1 w-full" aria-label={'Yandex '+yandexLabels[format]+' unit ID'} value={yandexUnitInputs[format]} onChange={e=>setYandexUnitInputs(v=>({...v,[format]:e.target.value}))} placeholder="R-M-…" autoComplete="off"/>
+     </label>)}
+    </div>
+    <p className="text-xs text-amber-700">App Open and Rewarded are Yandex Advertising Network formats, not Adfox direct-sales units. Yandex Rewarded cannot verify T2VPN Plus access; use Google rewarded with SSV for that placement.</p>
+    <div className="flex flex-wrap gap-2">
+     <button type="button" className="ui-btn ui-btn-primary" onClick={addYandexUnits}><Plus size={16}/>Add Yandex IDs</button>
+     <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>setTab('placements')}>Configure placements</button>
+    </div>
+   </section>
    <section className="card p-5 space-y-4"><div><h2 className="text-lg font-semibold">Add an ad unit</h2><p className="text-xs text-slate-500 mt-1">Copy the real placement ID from your ad network dashboard. Yandex IDs usually start with R-M-.</p></div>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
      <label className="text-sm">Network<select className="input mt-1 w-full" value={newUnit.provider} onChange={e=>setNewUnit(v=>({...v,provider:e.target.value as Provider,format:'BANNER'}))}>{providers.map(p=><option key={p} value={p}>{names[p]}</option>)}</select></label>
-     <label className="text-sm">Format<select className="input mt-1 w-full" value={newUnit.format} onChange={e=>setNewUnit(v=>({...v,format:e.target.value as Format}))}>{fmtList.filter(x=>newUnit.provider!=='ADFOX'||!['REWARDED','APP_OPEN'].includes(x)).map(x=><option key={x} value={x}>{x.replace('_',' ')}</option>)}</select></label>
+     <label className="text-sm">Format<select className="input mt-1 w-full" value={newUnit.format} onChange={e=>setNewUnit(v=>({...v,format:e.target.value as Format}))}>{fmtList.map(x=><option key={x} value={x}>{x.replace('_',' ')}</option>)}</select></label>
      <label className="text-sm">Name<input className="input mt-1 w-full" value={newUnit.name} onChange={e=>setNewUnit(v=>({...v,name:e.target.value}))} placeholder="Home Adfox"/></label>
      <label className="text-sm">Ad unit ID<input className="input mt-1 w-full" value={newUnit.unitId} onChange={e=>setNewUnit(v=>({...v,unitId:e.target.value}))} placeholder="R-M-..."/></label>
     </div><button type="button" className="ui-btn ui-btn-primary" onClick={addUnit}><Plus size={16}/>Add unit</button>
    </section>
    <section className="card overflow-hidden"><div className="p-4 flex flex-wrap justify-between items-center gap-2"><h2 className="font-semibold">Ad units ({data.units.length})</h2><p className="text-xs text-slate-500">Disable an ID without deleting it.</p></div>
     <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-slate-600"><tr>{['Name','Network','Format','Ad unit ID','Active',''].map(x=><th className="p-3 text-left font-medium" key={x}>{x}</th>)}</tr></thead><tbody>{data.units.map(u=><tr key={u.id} className="border-t border-slate-100"><td className="p-3 font-medium">{u.name}</td><td className="p-3 text-slate-600">{names[u.provider]}</td><td className="p-3">{u.format}</td><td className="p-3 max-w-52 truncate" title={u.unitId}>{u.unitId}</td><td className="p-3"><input aria-label={'Enable '+u.name} type="checkbox" className="ui-switch" checked={u.enabled} onChange={e=>setData(d=>({...d,units:d.units.map(x=>x.id===u.id?{...x,enabled:e.target.checked}:x)}))}/></td><td className="p-3"><button type="button" className="ui-icon-danger" aria-label={'Delete '+u.name} onClick={()=>removeUnit(u.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table></div>
-    {data.units.length===0&&<div className="p-8 text-center text-sm text-slate-500">No units are saved yet. Add your Yandex / Adfox banner, native or interstitial IDs here.</div>}
+    {data.units.length===0&&<div className="p-8 text-center text-sm text-slate-500">No units are saved yet. You can add all five Yandex mobile ad formats above.</div>}
    </section>
    <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>setTab('placements')}>Assign units to pages</button>
   </div>}
@@ -176,7 +209,7 @@ export default function AdManagement(){
     <div className="grid gap-3 sm:grid-cols-3">
      <label className="text-sm">Country code<input list="ad-countries" maxLength={2} className="input mt-1 w-full uppercase" placeholder="RU" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value.toUpperCase()}))}/><datalist id="ad-countries">{regions.map(([code,name])=><option key={code} value={code}>{name}</option>)}</datalist></label>
      <label className="text-sm">Placement<select className="input mt-1 w-full" value={newRule.placement} onChange={e=>setNewRule(v=>({...v,placement:e.target.value as Key,unitRef:''}))}>{definitions.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}</select></label>
-     <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER')}</select></label>
+     <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER',newRule.placement==='rewarded_unlock')}</select></label>
     </div><button type="button" className="ui-btn ui-btn-primary" onClick={addRule}><Plus size={16}/>Add country rule</button>
    </section>
    <section className="card p-5 space-y-3"><h2 className="font-semibold">Existing rules ({data.countryRules.length})</h2>
