@@ -1,29 +1,206 @@
 'use client';
-import {useEffect,useState} from 'react';
-import {Plus,Save,RefreshCw,Trash2,Info,ShieldCheck} from 'lucide-react';
-type Provider='ADX'|'META'|'ADFOX';type Format='APP_OPEN'|'BANNER'|'NATIVE'|'REWARDED'|'INTERSTITIAL';
+import {useEffect,useMemo,useState} from 'react';
+import {AlertCircle,CheckCircle2,ChevronDown,ChevronUp,ExternalLink,Plus,RefreshCw,Save,Settings2,Trash2} from 'lucide-react';
+
+type Provider='ADX'|'META'|'ADFOX';
+type Format='APP_OPEN'|'BANNER'|'NATIVE'|'REWARDED'|'INTERSTITIAL';
 type Key='app_open'|'home_banner'|'usage_banner'|'region_native'|'rewarded_unlock'|'connect_interstitial'|'disconnect_interstitial'|'free_server_interstitial';
-type Unit={id:string,name:string,provider:Provider,format:Format,unitId:string,enabled:boolean};
-type Placement={key:Key,enabled:boolean,unitRef:string,fallbackRef:string};
-type Rule={id:string,country:string,placement:Key,unitRef:string,enabled:boolean};
-type Config={version:2,adsEnabled:boolean,providers:Record<Provider,{enabled:boolean,appId:string}>,units:Unit[],placements:Placement[],countryRules:Rule[],appOpenCooldownMinutes:number,rewardedUnlockEnabled:boolean};
-const definitions:{key:Key,label:string,format:Format,description:string}[]=[{key:'app_open',label:'App Open Ad',format:'APP_OPEN',description:'App launch and foreground transitions'},{key:'home_banner',label:'Homepage Banner',format:'BANNER',description:'VPN home screen'},{key:'usage_banner',label:'Usage Stats Banner',format:'BANNER',description:'Usage statistics page'},{key:'region_native',label:'Region Selection Native',format:'NATIVE',description:'VPN region selection overlay'},{key:'rewarded_unlock',label:'Rewarded Ad',format:'REWARDED',description:'Plus server unlock'},{key:'connect_interstitial',label:'On Connect Interstitial',format:'INTERSTITIAL',description:'After a successful VPN connection, subject to ad policy and cooldown'},{key:'disconnect_interstitial',label:'On Disconnect Interstitial',format:'INTERSTITIAL',description:'After VPN disconnection'},{key:'free_server_interstitial',label:'Free Server Selection Interstitial',format:'INTERSTITIAL',description:'When a free VPN server is selected'}];
-const providers:Provider[]=['ADX','META','ADFOX'];const providerNames:Record<Provider,string>={ADX:'Google AdX / Ad Manager',META:'Meta Audience Network',ADFOX:'Yandex / AdFox'};
-const defaults:Config={version:2,adsEnabled:true,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:definitions.map(d=>({key:d.key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
-const countries=[['RU','Russia'],['KZ','Kazakhstan'],['BY','Belarus'],['UZ','Uzbekistan'],['IN','India'],['US','United States'],['GB','United Kingdom'],['DE','Germany'],['FR','France'],['BR','Brazil']];
-export default function AdManagement(){const [data,setData]=useState<Config>(defaults);const [tab,setTab]=useState<'placements'|'units'|'countries'|'settings'>('placements');const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [newUnit,setNewUnit]=useState({name:'',provider:'ADX' as Provider,format:'BANNER' as Format,unitId:''});const [newRule,setNewRule]=useState({country:'RU',placement:'home_banner' as Key,unitRef:''});
-async function load(){setBusy(true);try{const r=await fetch('/api/ad-management',{cache:'no-store'});const body=await r.json();if(!r.ok)throw Error(body.error||'Load failed');setData(body);setMessage('')}catch(e){setMessage(String(e))}finally{setBusy(false)}}useEffect(()=>{void load()},[]);
-async function save(){setBusy(true);try{const r=await fetch('/api/ad-management',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const body=await r.json();if(!r.ok)throw Error(body.error||'Save failed');setData(body);setMessage('Ad configuration saved. Android app integration is still required.')}catch(e){setMessage(String(e))}finally{setBusy(false)}}
-function editPlacement(key:Key,patch:Partial<Placement>){setData(d=>({...d,placements:d.placements.map(p=>p.key===key?{...p,...patch}:p)}))}
-function options(format:Format){return data.units.filter(u=>u.format===format).map(u=><option key={u.id} value={u.id}>{u.name} — {providerNames[u.provider]}</option>)}
-function addUnit(){if(!newUnit.name.trim()||!newUnit.unitId.trim()){setMessage('Enter a name and ad unit ID');return}const unit:Unit={...newUnit,id:'unit_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),enabled:true};setData(d=>({...d,units:[...d.units,unit]}));setNewUnit({name:'',provider:'ADX',format:'BANNER',unitId:''});setMessage('Ad unit added locally. Click Save changes to persist.')}
-function deleteUnit(id:string){setData(d=>({...d,units:d.units.filter(u=>u.id!==id),placements:d.placements.map(p=>({...p,unitRef:p.unitRef===id?'':p.unitRef,fallbackRef:p.fallbackRef===id?'':p.fallbackRef})),countryRules:d.countryRules.filter(r=>r.unitRef!==id)}))}
-return <div className="space-y-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">T2VPN Monetization</p><h1 className="text-3xl font-semibold mt-2">Ad Management</h1><p className="text-sm text-slate-500 mt-2">Manage all ad units, screen placements and country overrides from one place.</p></div><div className="flex w-full flex-wrap items-center gap-2 sm:w-auto"><button onClick={load} disabled={busy} className="ui-btn ui-btn-secondary"><RefreshCw size={16}/> Reload</button><button onClick={save} disabled={busy} className="ui-btn ui-btn-primary"><Save size={16}/> {busy?'Working...':'Save changes'}</button></div></div>
-<div className="grid sm:grid-cols-3 gap-4">{providers.map(p=><div key={p} className="card p-5"><p className="text-xs text-slate-500">Ad network</p><h2 className="font-semibold mt-2">{providerNames[p]}</h2><div className="flex justify-between mt-3 text-xs"><span>{data.units.filter(u=>u.provider===p).length} ad units</span><span className={data.providers[p].enabled?'text-emerald-700':'text-slate-400'}>{data.providers[p].enabled?'Enabled':'Disabled'}</span></div></div>)}</div>
-{message&&<div role="status" className="bg-white border rounded-xl p-3 text-sm text-slate-700">{message}</div>}
-<div role="tablist" aria-label="Ad management sections" className="ui-tabs">{([['placements','Page Settings'],['units','Ad Unit Library'],['countries','Country Rules'],['settings','Settings']] as const).map(([key,label])=><button key={key} onClick={()=>setTab(key)} role="tab" aria-selected={tab===key} className={'ui-tab '+(tab===key?'ui-tab-active':'')}>{label}</button>)}</div>
-{tab==='placements'&&<div className="space-y-4">{definitions.map(def=>{const p=data.placements.find(x=>x.key===def.key)!;return <section key={def.key} className="card p-5 space-y-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">{def.label}</h3><p className="text-xs text-slate-500 mt-1">{def.description} · {def.format.replace('_',' ')}</p></div><label className="flex min-h-11 gap-3 items-center text-sm"><input type="checkbox" className="ui-switch" checked={p.enabled} onChange={e=>editPlacement(def.key,{enabled:e.target.checked})}/> Show ads</label></div><div className="grid sm:grid-cols-2 gap-4"><label className="text-sm">Primary ad unit<select className="input mt-2" value={p.unitRef} onChange={e=>editPlacement(def.key,{unitRef:e.target.value})}><option value="">Not assigned</option>{options(def.format)}</select></label><label className="text-sm">Fallback ad unit<select className="input mt-2" value={p.fallbackRef} onChange={e=>editPlacement(def.key,{fallbackRef:e.target.value})}><option value="">No fallback</option>{options(def.format)}</select></label></div></section>})}</div>}
-{tab==='units'&&<div className="space-y-5"><section className="card p-5 space-y-4"><h2 className="font-semibold">Add ad unit</h2><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"><label className="text-sm">Name<input className="input mt-2" placeholder="Homepage Banner 01" value={newUnit.name} onChange={e=>setNewUnit(v=>({...v,name:e.target.value}))}/></label><label className="text-sm">Network<select className="input mt-2" value={newUnit.provider} onChange={e=>setNewUnit(v=>({...v,provider:e.target.value as Provider}))}>{providers.map(p=><option key={p} value={p}>{providerNames[p]}</option>)}</select></label><label className="text-sm">Ad format<select className="input mt-2" value={newUnit.format} onChange={e=>setNewUnit(v=>({...v,format:e.target.value as Format}))}>{(['APP_OPEN','BANNER','NATIVE','REWARDED','INTERSTITIAL'] as Format[]).map(f=><option key={f} value={f}>{f.replace('_',' ')}</option>)}</select></label><label className="text-sm">Ad unit / placement ID<input className="input mt-2" placeholder="Provider ad unit ID" value={newUnit.unitId} onChange={e=>setNewUnit(v=>({...v,unitId:e.target.value}))}/></label></div><button onClick={addUnit} className="ui-btn ui-btn-primary"><Plus size={16}/> Add unit</button></section><section className="card overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr>{['Ad unit','Network','Format','Unit ID','Enabled',''].map(t=><th key={t} className="p-4">{t}</th>)}</tr></thead><tbody>{data.units.map(u=><tr key={u.id} className="border-t"><td className="p-4 font-medium">{u.name}</td><td className="p-4">{providerNames[u.provider]}</td><td className="p-4">{u.format}</td><td className="p-4 max-w-52 truncate" title={u.unitId}>{u.unitId}</td><td className="p-4"><input type="checkbox" className="ui-switch" checked={u.enabled} onChange={e=>setData(d=>({...d,units:d.units.map(x=>x.id===u.id?{...x,enabled:e.target.checked}:x)}))}/></td><td className="p-4"><button onClick={()=>deleteUnit(u.id)} aria-label={'Delete '+u.name} className="ui-icon-danger"><Trash2 size={17}/></button></td></tr>)}</tbody></table>{data.units.length===0&&<p className="p-8 text-center text-slate-500">No ad units added yet.</p>}</section></div>}
-{tab==='countries'&&<div className="space-y-5"><section className="card p-5 space-y-4"><h2 className="font-semibold">Add country override</h2><p className="text-sm text-slate-500">Country-specific units override the global placement when enabled and eligible.</p><div className="grid sm:grid-cols-3 gap-3"><label className="text-sm">Country<select className="input mt-2" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value}))}>{countries.map(([c,n])=><option key={c} value={c}>{n}</option>)}</select></label><label className="text-sm">Placement<select className="input mt-2" value={newRule.placement} onChange={e=>setNewRule(v=>({...v,placement:e.target.value as Key,unitRef:''}))}>{definitions.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}</select></label><label className="text-sm">Ad unit<select className="input mt-2" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{options(definitions.find(d=>d.key===newRule.placement)!.format)}</select></label></div><button onClick={()=>{if(!newRule.unitRef){setMessage('Choose an ad unit first');return}if(data.countryRules.some(r=>r.country===newRule.country&&r.placement===newRule.placement)){setMessage('Country and placement already have a rule');return}setData(d=>({...d,countryRules:[...d.countryRules,{...newRule,id:'rule_'+Date.now(),enabled:true}]}))}} className="ui-btn ui-btn-primary"><Plus size={16}/> Add country rule</button></section><section className="card p-5 space-y-3"><h2 className="font-semibold">Configured overrides</h2>{data.countryRules.map(r=><div key={r.id} className="flex justify-between items-center border-b py-3 gap-3 text-sm"><span>{countries.find(c=>c[0]===r.country)?.[1]||r.country} · {definitions.find(d=>d.key===r.placement)?.label} · {data.units.find(u=>u.id===r.unitRef)?.name||'Unknown unit'}</span><button onClick={()=>setData(d=>({...d,countryRules:d.countryRules.filter(x=>x.id!==r.id)}))} className="ui-icon-danger"><Trash2 size={16}/></button></div>)}{data.countryRules.length===0&&<p className="text-sm text-slate-500">No overrides. Global placement assignments apply.</p>}</section></div>}
-{tab==='settings'&&<div className="space-y-5"><section className="card p-5 space-y-5"><h2 className="font-semibold">Global ad controls</h2><label className="ui-setting-row">Enable all advertising<input type="checkbox" className="ui-switch" checked={data.adsEnabled} onChange={e=>setData(d=>({...d,adsEnabled:e.target.checked}))}/></label><label className="flex justify-between items-center text-sm gap-3">Enable rewarded Plus server unlock<input type="checkbox" className="ui-switch" checked={data.rewardedUnlockEnabled} onChange={e=>setData(d=>({...d,rewardedUnlockEnabled:e.target.checked}))}/></label><label className="block text-sm max-w-sm">App Open cooldown (minutes)<input className="input mt-2" type="number" min="0" max="1440" value={data.appOpenCooldownMinutes} onChange={e=>setData(d=>({...d,appOpenCooldownMinutes:Number(e.target.value)}))}/></label></section><div className="grid lg:grid-cols-3 gap-4">{providers.map(p=><section key={p} className="card p-5 space-y-4"><div className="flex min-h-11 justify-between items-center gap-3"><h2 className="font-semibold">{providerNames[p]}</h2><input type="checkbox" className="ui-switch" checked={data.providers[p].enabled} onChange={e=>setData(d=>({...d,providers:{...d.providers,[p]:{...d.providers[p],enabled:e.target.checked}}}))}/></div><label className="text-sm block">Provider app ID<input className="input mt-2" value={data.providers[p].appId} onChange={e=>setData(d=>({...d,providers:{...d.providers,[p]:{...d.providers[p],appId:e.target.value}}}))}/></label></section>)}</div></div>}
-<div className="card p-4 flex items-start gap-3 text-sm text-slate-500"><Info size={18} className="shrink-0"/><p>These settings are saved in the admin database, not yet delivered to Android. Provider SDK support, country detection, fallback execution, and reporting need separate implementation. App Open format availability differs across networks.</p></div></div>}
+type Unit={id:string;name:string;provider:Provider;format:Format;unitId:string;enabled:boolean};
+type Placement={key:Key;enabled:boolean;unitRef:string;fallbackRef:string};
+type Rule={id:string;country:string;placement:Key;unitRef:string;enabled:boolean};
+type Config={version:2;adsEnabled:boolean;providers:Record<Provider,{enabled:boolean;appId:string}>;units:Unit[];placements:Placement[];countryRules:Rule[];appOpenCooldownMinutes:number;rewardedUnlockEnabled:boolean};
+type Tab='placements'|'units'|'countries';
+const providers:Provider[]=['ADX','META','ADFOX'];
+const names:Record<Provider,string>={ADX:'Google AdMob / AdX',META:'Meta Audience Network',ADFOX:'Yandex / Adfox'};
+const definitions:{key:Key;label:string;format:Format;detail:string}[]=[
+ {key:'home_banner',label:'Home banner',format:'BANNER',detail:'On the VPN home screen'},
+ {key:'usage_banner',label:'Usage statistics banner',format:'BANNER',detail:'On the usage screen'},
+ {key:'region_native',label:'Region selection native',format:'NATIVE',detail:'Inside the server selection overlay'},
+ {key:'rewarded_unlock',label:'Rewarded unlock',format:'REWARDED',detail:'Plus access after a verified rewarded ad'},
+ {key:'app_open',label:'App open',format:'APP_OPEN',detail:'On app launch or return'},
+ {key:'connect_interstitial',label:'After connection',format:'INTERSTITIAL',detail:'When the VPN connects'},
+ {key:'disconnect_interstitial',label:'After disconnection',format:'INTERSTITIAL',detail:'When the VPN disconnects'},
+ {key:'free_server_interstitial',label:'Free server selection',format:'INTERSTITIAL',detail:'After selecting a Free server'}
+];
+const defaults:Config={version:2,adsEnabled:false,providers:{ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}},units:[],placements:definitions.map(d=>({key:d.key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
+const regions=[['RU','Russia'],['KZ','Kazakhstan'],['BY','Belarus'],['UZ','Uzbekistan'],['IN','India'],['US','United States'],['GB','United Kingdom'],['DE','Germany'],['FR','France'],['BR','Brazil']];
+const fmtList:Format[]=['BANNER','NATIVE','INTERSTITIAL','REWARDED','APP_OPEN'];
+const labelFor=(key:Key)=>definitions.find(d=>d.key===key)?.label||key;
+
+export default function AdManagement(){
+ const [data,setData]=useState<Config>(defaults);
+ const [saved,setSaved]=useState<string|null>(null);
+ const [tab,setTab]=useState<Tab>('placements');
+ const [loading,setLoading]=useState(true);
+ const [saving,setSaving]=useState(false);
+ const [notice,setNotice]=useState<{kind:'success'|'error'|'info';text:string}|null>(null);
+ const [advanced,setAdvanced]=useState(false);
+ const [morePlacements,setMorePlacements]=useState(false);
+ const [previewCountry,setPreviewCountry]=useState('RU');
+ const [newUnit,setNewUnit]=useState({name:'',provider:'ADFOX' as Provider,format:'BANNER' as Format,unitId:''});
+ const [newRule,setNewRule]=useState({country:'RU',placement:'home_banner' as Key,unitRef:''});
+ const dirty=saved!==null&&JSON.stringify(data)!==saved;
+ const unitMap=useMemo(()=>new Map(data.units.map(u=>[u.id,u])),[data.units]);
+ const countryValid=/^[A-Z]{2}$/.test(previewCountry);
+ const pendingCount=data.placements.filter(p=>p.enabled&&(!p.unitRef||!unitMap.get(p.unitRef)?.enabled||!data.providers[unitMap.get(p.unitRef)?.provider||'ADX'].enabled)).length;
+
+ async function load(force=false){
+  if(!force&&dirty&&!window.confirm('Discard unsaved ad changes and reload?'))return;
+  setLoading(true);
+  try{
+   const response=await fetch('/api/ad-management',{cache:'no-store'});
+   const body=await response.json();
+   if(!response.ok)throw new Error(body.error||'Failed to load ad settings');
+   setData(body as Config);
+   setSaved(JSON.stringify(body));
+   if(!force)setNotice({kind:'info',text:'Saved settings reloaded.'});else setNotice(null);
+   if((body as Config).placements.some(p=>p.enabled&&['connect_interstitial','disconnect_interstitial','free_server_interstitial','app_open'].includes(p.key)))setMorePlacements(true);
+  }catch(e){setNotice({kind:'error',text:e instanceof Error?e.message:'Unable to load ad settings'})}
+  finally{setLoading(false)}
+ }
+ useEffect(()=>{void load(true)},[]);
+ async function save(){
+  if(!dirty)return;
+  setSaving(true);setNotice(null);
+  try{
+   const response=await fetch('/api/ad-management',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+   const body=await response.json();
+   if(!response.ok)throw new Error(body.error||'Unable to save settings');
+   setData(body as Config);
+   setSaved(JSON.stringify(body));
+   setNotice({kind:'success',text:'Saved successfully. Android clients will receive this configuration on their next refresh.'});
+  }catch(e){
+   const reason=e instanceof Error?e.message:'Unable to save settings';
+   setNotice({kind:'error',text:reason+' Your unsaved changes are still here; do not reload until the issue is resolved.'});
+  }finally{setSaving(false)}
+ }
+ function changePlacement(key:Key,patch:Partial<Placement>){
+  setData(d=>({...d,placements:d.placements.map(p=>p.key===key?{...p,...patch}:p)}));
+ }
+ function unitOptions(format:Format){
+  return providers.map(provider=>{
+   const eligible=data.units.filter(u=>u.provider===provider&&u.format===format);
+   if(eligible.length===0)return null;
+   return <optgroup key={provider} label={names[provider]}>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{!u.enabled?' (disabled)':''}</option>)}</optgroup>;
+  });
+ }
+ function addUnit(){
+  const name=newUnit.name.trim(),unitId=newUnit.unitId.trim();
+  if(!name||!unitId){setNotice({kind:'error',text:'Enter an ad unit name and its ID.'});return}
+  if(newUnit.provider==='ADFOX'&&['APP_OPEN','REWARDED'].includes(newUnit.format)){setNotice({kind:'error',text:'Adfox direct-sales units use Banner, Native or Interstitial.'});return}
+  if(data.units.some(u=>u.provider===newUnit.provider&&u.unitId===unitId)){
+   setNotice({kind:'error',text:'This provider and ad-unit ID are already in the library.'});return
+  }
+  const unit:Unit={...newUnit,name,unitId,id:'unit_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),enabled:true};
+  setData(d=>({...d,units:[...d.units,unit]}));
+  setNewUnit({name:'',provider:newUnit.provider,format:'BANNER',unitId:''});
+  setNotice({kind:'info',text:'Ad unit added. Assign it to a placement, then Save changes.'});
+ }
+ function removeUnit(id:string){
+  const u=unitMap.get(id);if(!u||!window.confirm('Remove '+u.name+'? Its placement and country assignments will also be cleared.'))return;
+  setData(d=>({...d,units:d.units.filter(u=>u.id!==id),
+   placements:d.placements.map(p=>({...p,unitRef:p.unitRef===id?'':p.unitRef,fallbackRef:p.fallbackRef===id?'':p.fallbackRef})),
+   countryRules:d.countryRules.filter(r=>r.unitRef!==id)}));
+ }
+ function addRule(){
+  const country=newRule.country.trim().toUpperCase();
+  if(!/^[A-Z]{2}$/.test(country)){setNotice({kind:'error',text:'Enter a two-letter country code, such as RU or KZ.'});return}
+  if(!newRule.unitRef){setNotice({kind:'error',text:'Choose an ad unit for this country rule.'});return}
+  if(data.countryRules.some(r=>r.country===country&&r.placement===newRule.placement)){
+   setNotice({kind:'error',text:'This country and placement already have a rule. Remove it before replacing it.'});return
+  }
+  setData(d=>({...d,countryRules:[...d.countryRules,{id:'rule_'+Date.now(),country,placement:newRule.placement,unitRef:newRule.unitRef,enabled:true}]}));
+  setNotice({kind:'info',text:'Country rule added. Save changes to apply it.'});
+ }
+ function renderPlacement(def:typeof definitions[number]){
+  const p=data.placements.find(x=>x.key===def.key);
+  if(!p)return null;
+  const chosen=unitMap.get(p.unitRef);
+  const ineligible=p.enabled&&(!chosen||!chosen.enabled||!data.providers[chosen.provider].enabled);
+  return <div key={def.key} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+   <div className="flex flex-wrap items-center justify-between gap-3">
+    <div><h3 className="font-semibold text-sm text-slate-900">{def.label}</h3><p className="mt-1 text-xs text-slate-500">{def.detail}</p></div>
+    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer"><span>{p.enabled?'On':'Off'}</span><input aria-label={def.label+' advertising'} type="checkbox" className="ui-switch" checked={p.enabled} onChange={e=>changePlacement(def.key,{enabled:e.target.checked})}/></label>
+   </div>
+   {p.enabled&&<div className="grid gap-3 sm:grid-cols-2">
+    <label className="block text-xs text-slate-600">Ad unit<select aria-label={def.label+' primary ad unit'} className="input mt-1 w-full" value={p.unitRef} onChange={e=>changePlacement(def.key,{unitRef:e.target.value})}><option value="">Choose an ad unit</option>{unitOptions(def.format)}</select></label>
+    <label className="block text-xs text-slate-600">Fallback (optional)<select aria-label={def.label+' fallback ad unit'} className="input mt-1 w-full" value={p.fallbackRef} onChange={e=>changePlacement(def.key,{fallbackRef:e.target.value})}><option value="">No fallback</option>{unitOptions(def.format)}</select></label>
+   </div>}
+   {ineligible&&<p className="flex gap-2 items-start text-xs text-amber-700"><AlertCircle size={14} className="shrink-0 mt-0.5"/>Choose an enabled unit from an enabled network. Otherwise no ad will load.</p>}
+  </div>;
+ }
+
+ return <div className="mx-auto max-w-7xl space-y-5 pb-10">
+  <header className="flex flex-wrap items-center justify-between gap-3">
+   <div><p className="text-xs uppercase tracking-widest font-semibold text-slate-500">T2VPN monetization</p><h1 className="text-3xl font-semibold text-slate-900 mt-1">Ad Management</h1><p className="text-sm text-slate-500 mt-1">Turn on networks, add ad IDs, then choose where ads appear.</p></div>
+   <div className="flex flex-wrap items-center gap-2">
+    {dirty&&<span className="text-xs font-medium text-amber-700">Unsaved changes</span>}
+    <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>void load()} disabled={loading||saving}><RefreshCw size={16}/>Reload</button>
+    <button type="button" className="ui-btn ui-btn-primary" onClick={()=>void save()} disabled={!dirty||loading||saving}><Save size={16}/>{saving?'Saving…':'Save changes'}</button>
+   </div>
+  </header>
+  {notice&&<div role="status" aria-live="polite" className={'rounded-xl border px-4 py-3 text-sm flex items-start gap-2 '+(notice.kind==='error'?'border-red-200 bg-red-50 text-red-800':notice.kind==='success'?'border-emerald-200 bg-emerald-50 text-emerald-800':'border-slate-200 bg-white text-slate-700')}>{notice.kind==='success'?<CheckCircle2 size={17} className="shrink-0"/>:<AlertCircle size={17} className="shrink-0"/>}{notice.text}</div>}
+  <section className="card p-4 sm:p-5 space-y-4">
+   <div className="flex justify-between items-center gap-4"><div><h2 className="font-semibold">Advertising</h2><p className="text-xs text-slate-500 mt-1">Master switch for all ad placements</p></div><label className="flex items-center gap-2 text-sm"><span>{data.adsEnabled?'On':'Off'}</span><input aria-label="Enable all advertising" type="checkbox" className="ui-switch" checked={data.adsEnabled} onChange={e=>setData(d=>({...d,adsEnabled:e.target.checked}))}/></label></div>
+   <div className="grid gap-3 md:grid-cols-3">{providers.map(provider=><label key={provider} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 cursor-pointer"><span className="min-w-0"><span className="block text-sm font-semibold">{names[provider]}</span><span className="block text-xs text-slate-500 mt-1">{data.units.filter(u=>u.provider===provider).length} saved ad units</span></span><input aria-label={'Enable '+names[provider]} type="checkbox" className="ui-switch" checked={data.providers[provider].enabled} onChange={e=>setData(d=>({...d,providers:{...d.providers,[provider]:{...d.providers[provider],enabled:e.target.checked}}}))}/></label>)}</div>
+   {!data.adsEnabled&&<p className="text-xs text-amber-700">Advertising is off globally. No ad units will be delivered until you enable it and save.</p>}
+  </section>
+  <nav className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 w-fit" aria-label="Ad setup steps">
+   {([['placements','1. Where to show ads'],['units','2. Ad unit IDs'],['countries','3. Countries (optional)']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={tab===id} onClick={()=>setTab(id)} className={'rounded-lg px-4 py-2 text-sm font-medium '+(tab===id?'bg-white text-slate-900 shadow-sm':'text-slate-600 hover:bg-white/70')}>{label}</button>)}
+  </nav>
+  {tab==='placements'&&<div className="space-y-4">
+   <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-semibold">Choose where ads appear</h2><p className="text-xs text-slate-500">Each placement needs a saved, enabled ad unit. Fallbacks are optional.</p></div><button type="button" onClick={()=>setTab('units')} className="ui-btn ui-btn-secondary"><Plus size={16}/>Add ad unit</button></div>
+   {pendingCount>0&&<p className="text-xs text-amber-700">{pendingCount} enabled placement{pendingCount===1?' has':'s have'} no eligible primary unit.</p>}
+   <div className="grid gap-3 lg:grid-cols-2">{definitions.slice(0,4).map(renderPlacement)}</div>
+   <button type="button" className="ui-btn ui-btn-secondary w-full justify-between" onClick={()=>setMorePlacements(v=>!v)}><span>Other placements: App Open and Interstitials</span>{morePlacements?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</button>
+   {morePlacements&&<div className="grid gap-3 lg:grid-cols-2">{definitions.slice(4).map(renderPlacement)}</div>}
+   <div className="flex justify-end"><button type="button" onClick={()=>setTab('countries')} className="ui-btn ui-btn-secondary">Optional: Country rules</button></div>
+  </div>}
+  {tab==='units'&&<div className="space-y-4">
+   <section className="card p-5 space-y-4"><div><h2 className="text-lg font-semibold">Add an ad unit</h2><p className="text-xs text-slate-500 mt-1">Copy the real placement ID from your ad network dashboard. Yandex IDs usually start with R-M-.</p></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+     <label className="text-sm">Network<select className="input mt-1 w-full" value={newUnit.provider} onChange={e=>setNewUnit(v=>({...v,provider:e.target.value as Provider,format:'BANNER'}))}>{providers.map(p=><option key={p} value={p}>{names[p]}</option>)}</select></label>
+     <label className="text-sm">Format<select className="input mt-1 w-full" value={newUnit.format} onChange={e=>setNewUnit(v=>({...v,format:e.target.value as Format}))}>{fmtList.filter(x=>newUnit.provider!=='ADFOX'||!['REWARDED','APP_OPEN'].includes(x)).map(x=><option key={x} value={x}>{x.replace('_',' ')}</option>)}</select></label>
+     <label className="text-sm">Name<input className="input mt-1 w-full" value={newUnit.name} onChange={e=>setNewUnit(v=>({...v,name:e.target.value}))} placeholder="Home Adfox"/></label>
+     <label className="text-sm">Ad unit ID<input className="input mt-1 w-full" value={newUnit.unitId} onChange={e=>setNewUnit(v=>({...v,unitId:e.target.value}))} placeholder="R-M-..."/></label>
+    </div><button type="button" className="ui-btn ui-btn-primary" onClick={addUnit}><Plus size={16}/>Add unit</button>
+   </section>
+   <section className="card overflow-hidden"><div className="p-4 flex flex-wrap justify-between items-center gap-2"><h2 className="font-semibold">Ad units ({data.units.length})</h2><p className="text-xs text-slate-500">Disable an ID without deleting it.</p></div>
+    <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-slate-600"><tr>{['Name','Network','Format','Ad unit ID','Active',''].map(x=><th className="p-3 text-left font-medium" key={x}>{x}</th>)}</tr></thead><tbody>{data.units.map(u=><tr key={u.id} className="border-t border-slate-100"><td className="p-3 font-medium">{u.name}</td><td className="p-3 text-slate-600">{names[u.provider]}</td><td className="p-3">{u.format}</td><td className="p-3 max-w-52 truncate" title={u.unitId}>{u.unitId}</td><td className="p-3"><input aria-label={'Enable '+u.name} type="checkbox" className="ui-switch" checked={u.enabled} onChange={e=>setData(d=>({...d,units:d.units.map(x=>x.id===u.id?{...x,enabled:e.target.checked}:x)}))}/></td><td className="p-3"><button type="button" className="ui-icon-danger" aria-label={'Delete '+u.name} onClick={()=>removeUnit(u.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table></div>
+    {data.units.length===0&&<div className="p-8 text-center text-sm text-slate-500">No units are saved yet. Add your Yandex / Adfox banner, native or interstitial IDs here.</div>}
+   </section>
+   <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>setTab('placements')}>Assign units to pages</button>
+  </div>}
+  {tab==='countries'&&<div className="space-y-4">
+   <section className="card p-5 space-y-4"><h2 className="text-lg font-semibold">Country overrides (optional)</h2><p className="text-sm text-slate-500">Use a different ad unit for visitors in a particular country. Without an override, the normal placement unit applies.</p>
+    <div className="grid gap-3 sm:grid-cols-3">
+     <label className="text-sm">Country code<input list="ad-countries" maxLength={2} className="input mt-1 w-full uppercase" placeholder="RU" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value.toUpperCase()}))}/><datalist id="ad-countries">{regions.map(([code,name])=><option key={code} value={code}>{name}</option>)}</datalist></label>
+     <label className="text-sm">Placement<select className="input mt-1 w-full" value={newRule.placement} onChange={e=>setNewRule(v=>({...v,placement:e.target.value as Key,unitRef:''}))}>{definitions.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}</select></label>
+     <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER')}</select></label>
+    </div><button type="button" className="ui-btn ui-btn-primary" onClick={addRule}><Plus size={16}/>Add country rule</button>
+   </section>
+   <section className="card p-5 space-y-3"><h2 className="font-semibold">Existing rules ({data.countryRules.length})</h2>
+    {data.countryRules.length===0&&<p className="text-sm text-slate-500">No country rules. Your normal page assignments will apply everywhere.</p>}
+    {data.countryRules.map(rule=><div key={rule.id} className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 py-3 text-sm">
+     <div><p className="font-semibold">{regions.find(r=>r[0]===rule.country)?.[1]||rule.country} ({rule.country}) · {labelFor(rule.placement)}</p><p className="text-xs text-slate-500 mt-1">{unitMap.get(rule.unitRef)?.name||'Unknown ad unit'}</p></div>
+     <div className="flex items-center gap-3"><label className="flex items-center gap-2 text-xs text-slate-500"><span>{rule.enabled?'On':'Off'}</span><input aria-label={'Enable '+rule.country+' '+rule.placement} className="ui-switch" type="checkbox" checked={rule.enabled} onChange={e=>setData(d=>({...d,countryRules:d.countryRules.map(r=>r.id===rule.id?{...r,enabled:e.target.checked}:r)}))}/></label><button type="button" aria-label={'Delete '+rule.country+' '+rule.placement} className="ui-icon-danger" onClick={()=>setData(d=>({...d,countryRules:d.countryRules.filter(r=>r.id!==rule.id)}))}><Trash2 size={16}/></button></div>
+    </div>)}
+   </section>
+   <section className="card p-4 flex flex-wrap items-center gap-3"><p className="text-sm text-slate-600">Check the Android-facing ad settings for a country:</p><input className="input w-24" aria-label="Preview country" maxLength={2} value={previewCountry} onChange={e=>setPreviewCountry(e.target.value.toUpperCase())}/><a className={'ui-btn ui-btn-secondary '+(!countryValid?'pointer-events-none opacity-50':'')} href={countryValid?'/api/mobile/ads?country='+previewCountry:'#'} target="_blank" rel="noreferrer"><ExternalLink size={15}/>View API</a></section>
+   <p className="text-xs text-slate-500">Android must request the appropriate user country code. Changes are not applied until you click Save changes.</p>
+  </div>}
+  <section className="card p-4 space-y-4">
+   <button type="button" aria-expanded={advanced} className="w-full flex items-center justify-between gap-2 text-sm font-semibold" onClick={()=>setAdvanced(v=>!v)}><span className="flex items-center gap-2"><Settings2 size={17}/>Advanced settings</span>{advanced?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</button>
+   {advanced&&<div className="space-y-4 border-t border-slate-100 pt-4">
+    <label className="flex justify-between items-center gap-4 text-sm">Enable rewarded Plus unlock<input type="checkbox" className="ui-switch" checked={data.rewardedUnlockEnabled} onChange={e=>setData(d=>({...d,rewardedUnlockEnabled:e.target.checked}))}/></label>
+    <label className="block max-w-xs text-sm">App Open cooldown (minutes)<input type="number" min={0} max={1440} className="input mt-2 w-full" value={data.appOpenCooldownMinutes} onChange={e=>setData(d=>({...d,appOpenCooldownMinutes:Number(e.target.value)}))}/></label>
+    <div className="grid gap-3 lg:grid-cols-3">{providers.map(provider=><label key={provider} className="block text-sm">{names[provider]} · Optional provider app ID<input className="input mt-1 w-full" value={data.providers[provider].appId} onChange={e=>setData(d=>({...d,providers:{...d.providers,[provider]:{...d.providers[provider],appId:e.target.value}}}))} placeholder="Only if your SDK requires one"/></label>)}</div>
+    <p className="text-xs text-slate-500">Yandex ad units typically use their R-M- placement ID; do not enter that ID in the optional provider app ID field. Verified rewarded unlock currently requires Google server-side verification.</p>
+   </div>}
+  </section>
+  <footer className="flex flex-wrap gap-3 items-center justify-between">
+   <p className="text-xs text-slate-500">The admin stores settings; the Android SDK requests and displays the ads. Network fill is not guaranteed.</p>
+   <button type="button" className="ui-btn ui-btn-primary" disabled={!dirty||loading||saving} onClick={()=>void save()}><Save size={16}/>{saving?'Saving…':'Save changes'}</button>
+  </footer>
+ </div>;
+}
