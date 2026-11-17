@@ -17,7 +17,7 @@ const definitions:{key:Key;label:string;format:Format;detail:string}[]=[
  {key:'home_banner',label:'Home banner',format:'BANNER',detail:'On the VPN home screen'},
  {key:'usage_banner',label:'Usage statistics banner',format:'BANNER',detail:'On the usage screen'},
  {key:'region_native',label:'Region selection native',format:'NATIVE',detail:'Inside the server selection overlay'},
- {key:'rewarded_unlock',label:'Rewarded unlock',format:'REWARDED',detail:'Plus access after a verified rewarded ad'},
+ {key:'rewarded_unlock',label:'Rewarded ad',format:'REWARDED',detail:'Yandex or Google ad; only Google SSV can verify Plus unlock'},
  {key:'app_open',label:'App open',format:'APP_OPEN',detail:'On app launch or return'},
  {key:'connect_interstitial',label:'After connection',format:'INTERSTITIAL',detail:'When the VPN connects'},
  {key:'disconnect_interstitial',label:'After disconnection',format:'INTERSTITIAL',detail:'When the VPN disconnects'},
@@ -77,9 +77,9 @@ export default function AdManagement(){
  function changePlacement(key:Key,patch:Partial<Placement>){
   setData(d=>({...d,placements:d.placements.map(p=>p.key===key?{...p,...patch}:p)}));
  }
- function unitOptions(format:Format,plusUnlock=false){
+ function unitOptions(format:Format){
   return providers.map(provider=>{
-   const eligible=data.units.filter(u=>u.provider===provider&&u.format===format&&(!plusUnlock||u.provider==='ADX'));
+   const eligible=data.units.filter(u=>u.provider===provider&&u.format===format);
    if(eligible.length===0)return null;
    return <optgroup key={provider} label={names[provider]}>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{!u.enabled?' (disabled)':''}</option>)}</optgroup>;
   });
@@ -116,17 +116,18 @@ export default function AdManagement(){
   if(!p)return null;
   const chosen=unitMap.get(p.unitRef);
   const ineligible=p.enabled&&(!chosen||!chosen.enabled||!data.providers[chosen.provider].enabled);
+  const rewardIsYandex=def.key==='rewarded_unlock'&&chosen?.provider==='ADFOX';
   return <div key={def.key} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><h3 className="font-semibold text-sm text-slate-900">{def.label}</h3><p className="mt-1 text-xs text-slate-500">{def.detail}</p></div>
     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer"><span>{p.enabled?'On':'Off'}</span><input aria-label={def.label+' advertising'} type="checkbox" className="ui-switch" checked={p.enabled} onChange={e=>changePlacement(def.key,{enabled:e.target.checked})}/></label>
    </div>
    {p.enabled&&<div className="grid gap-3 sm:grid-cols-2">
-    <label className="block text-xs text-slate-600">Ad unit<select aria-label={def.label+' primary ad unit'} className="input mt-1 w-full" value={p.unitRef} onChange={e=>changePlacement(def.key,{unitRef:e.target.value})}><option value="">Choose an ad unit</option>{unitOptions(def.format,def.key==='rewarded_unlock')}</select></label>
+    <label className="block text-xs text-slate-600">Ad unit<select aria-label={def.label+' primary ad unit'} className="input mt-1 w-full" value={p.unitRef} onChange={e=>changePlacement(def.key,{unitRef:e.target.value})}><option value="">Choose an ad unit</option>{unitOptions(def.format)}</select></label>
     <label className="block text-xs text-slate-600">Fallback (optional)<select aria-label={def.label+' fallback ad unit'} className="input mt-1 w-full" value={p.fallbackRef} onChange={e=>changePlacement(def.key,{fallbackRef:e.target.value})}><option value="">No fallback</option>{unitOptions(def.format)}</select></label>
    </div>}
-   {def.key==='rewarded_unlock'&&<p className="text-xs text-amber-700">Plus unlock requires server-verified Google rewarded ads. A Yandex rewarded unit can be stored in the library, but cannot be assigned here.</p>}
-   {ineligible&&<p className="flex gap-2 items-start text-xs text-amber-700"><AlertCircle size={14} className="shrink-0 mt-0.5"/>Choose an enabled unit from an enabled network. Otherwise no ad will load.</p>}
+   {def.key==='rewarded_unlock'&&<p className={'text-xs '+(rewardIsYandex?'text-amber-700':'text-slate-500')}>{rewardIsYandex?'Yandex rewarded ads can display in Android, but Yandex has no server-side reward verification. This selection cannot grant 30-minute Plus access. Use a Google rewarded unit with SSV for Plus unlock.':'You can choose a Yandex or Google rewarded ad. Only Google rewarded ads with server-side verification can grant 30-minute Plus access.'}</p>}
+   {ineligible&&<p className="flex gap-2 items-start text-xs text-amber-700"><AlertCircle size={14} className="shrink-0 mt-0.5"/>Choose an enabled ad unit from an enabled network. Otherwise no rewarded ad will load.</p>}
   </div>;
  }
 
@@ -176,7 +177,7 @@ export default function AdManagement(){
     <div className="grid gap-3 sm:grid-cols-3">
      <label className="text-sm">Country code<input list="ad-countries" maxLength={2} className="input mt-1 w-full uppercase" placeholder="RU" value={newRule.country} onChange={e=>setNewRule(v=>({...v,country:e.target.value.toUpperCase()}))}/><datalist id="ad-countries">{regions.map(([code,name])=><option key={code} value={code}>{name} ({code})</option>)}</datalist></label>
      <label className="text-sm">Placement<select className="input mt-1 w-full" value={newRule.placement} onChange={e=>setNewRule(v=>({...v,placement:e.target.value as Key,unitRef:''}))}>{definitions.map(d=><option key={d.key} value={d.key}>{d.label}</option>)}</select></label>
-     <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER',newRule.placement==='rewarded_unlock')}</select></label>
+     <label className="text-sm">Use this ad unit<select className="input mt-1 w-full" value={newRule.unitRef} onChange={e=>setNewRule(v=>({...v,unitRef:e.target.value}))}><option value="">Choose unit</option>{unitOptions(definitions.find(d=>d.key===newRule.placement)?.format||'BANNER')}</select></label>
     </div><button type="button" className="ui-btn ui-btn-primary" onClick={addRule}><Plus size={16}/>Add country rule</button>
    </section>
    <section className="card p-5 space-y-3"><h2 className="font-semibold">Existing rules ({data.countryRules.length})</h2>
