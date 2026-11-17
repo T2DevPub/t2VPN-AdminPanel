@@ -26,9 +26,6 @@ const defaults:Config={version:2,adsEnabled:false,providers:{ADX:{enabled:false,
 const regions=[['RU','Russia'],['KZ','Kazakhstan'],['BY','Belarus'],['UZ','Uzbekistan'],['IN','India'],['US','United States'],['GB','United Kingdom'],['DE','Germany'],['FR','France'],['BR','Brazil']];
 const fmtList:Format[]=['BANNER','NATIVE','INTERSTITIAL','REWARDED','APP_OPEN'];
 const labelFor=(key:Key)=>definitions.find(d=>d.key===key)?.label||key;
-const yandexLabels:Record<Format,string>={APP_OPEN:'App Open',REWARDED:'Rewarded',INTERSTITIAL:'Interstitial',NATIVE:'Native',BANNER:'Banner'};
-const yandexOrder:Format[]=['APP_OPEN','REWARDED','INTERSTITIAL','NATIVE','BANNER'];
-
 export default function AdManagement(){
  const [data,setData]=useState<Config>(defaults);
  const [saved,setSaved]=useState<string|null>(null);
@@ -41,7 +38,6 @@ export default function AdManagement(){
  const [previewCountry,setPreviewCountry]=useState('RU');
  const [newUnit,setNewUnit]=useState({name:'',provider:'ADFOX' as Provider,format:'BANNER' as Format,unitId:''});
  const [newRule,setNewRule]=useState({country:'RU',placement:'home_banner' as Key,unitRef:''});
- const [yandexUnitInputs,setYandexUnitInputs]=useState<Record<Format,string>>({APP_OPEN:'',REWARDED:'',INTERSTITIAL:'',NATIVE:'',BANNER:''});
  const dirty=saved!==null&&JSON.stringify(data)!==saved;
  const unitMap=useMemo(()=>new Map(data.units.map(u=>[u.id,u])),[data.units]);
  const countryValid=/^[A-Z]{2}$/.test(previewCountry);
@@ -97,22 +93,6 @@ export default function AdManagement(){
   setData(d=>({...d,units:[...d.units,unit]}));
   setNewUnit({name:'',provider:newUnit.provider,format:'BANNER',unitId:''});
   setNotice({kind:'info',text:'Ad unit added. Assign it to a placement, then Save changes.'});
- }
- function addYandexUnits(){
-  const entries=yandexOrder.map(format=>({format,unitId:yandexUnitInputs[format].trim()})).filter(x=>x.unitId);
-  if(entries.length===0){setNotice({kind:'error',text:'Enter at least one Yandex ad unit ID.'});return}
-  if(entries.some(x=>!/^R-M-\d+-\d+$/.test(x.unitId))){setNotice({kind:'error',text:'Yandex mobile IDs should look like R-M-1234567-1. Correct any invalid IDs before adding.'});return}
-  if(new Set(entries.map(x=>x.unitId)).size!==entries.length){setNotice({kind:'error',text:'Use a separate mobile unit ID for each Yandex ad format.'});return}
-  const conflicts=entries.filter(e=>data.units.some(u=>u.provider==='ADFOX'&&u.unitId===e.unitId&&u.format!==e.format));
-  if(conflicts.length){setNotice({kind:'error',text:'One of these Yandex unit IDs already exists under a different format.'});return}
-  const additions:Unit[]=entries.filter(e=>!data.units.some(u=>u.provider==='ADFOX'&&u.unitId===e.unitId)).map((e,i)=>({
-   id:'unit_yandex_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),
-   name:'Yandex '+yandexLabels[e.format],provider:'ADFOX',format:e.format,unitId:e.unitId,enabled:true
-  }));
-  if(!additions.length){setNotice({kind:'info',text:'Those Yandex units are already in your library.'});return}
-  setData(d=>({...d,units:[...d.units,...additions]}));
-  setYandexUnitInputs({APP_OPEN:'',REWARDED:'',INTERSTITIAL:'',NATIVE:'',BANNER:''});
-  setNotice({kind:'info',text:additions.length+' Yandex ad unit(s) added. Choose their placement(s), then click Save changes.'});
  }
  function removeUnit(id:string){
   const u=unitMap.get(id);if(!u||!window.confirm('Remove '+u.name+'? Its placement and country assignments will also be cleared.'))return;
@@ -176,20 +156,6 @@ export default function AdManagement(){
    <div className="flex justify-end"><button type="button" onClick={()=>setTab('countries')} className="ui-btn ui-btn-secondary">Optional: Country rules</button></div>
   </div>}
   {tab==='units'&&<div className="space-y-4">
-   <section className="card p-5 space-y-4">
-    <div><h2 className="text-lg font-semibold">Yandex ad units · Quick add</h2>
-     <p className="text-sm text-slate-500 mt-1">Enter any or all five Yandex Advertising Network IDs from your publisher dashboard. Blank formats are skipped; existing units are kept.</p></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-     {yandexOrder.map(format=><label className="block text-sm" key={format}>{yandexLabels[format]} ad unit
-      <input className="input mt-1 w-full" aria-label={'Yandex '+yandexLabels[format]+' unit ID'} value={yandexUnitInputs[format]} onChange={e=>setYandexUnitInputs(v=>({...v,[format]:e.target.value}))} placeholder="R-M-…" autoComplete="off"/>
-     </label>)}
-    </div>
-    <p className="text-xs text-amber-700">App Open and Rewarded are Yandex Advertising Network formats, not Adfox direct-sales units. Yandex Rewarded cannot verify T2VPN Plus access; use Google rewarded with SSV for that placement.</p>
-    <div className="flex flex-wrap gap-2">
-     <button type="button" className="ui-btn ui-btn-primary" onClick={addYandexUnits}><Plus size={16}/>Add Yandex IDs</button>
-     <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>setTab('placements')}>Configure placements</button>
-    </div>
-   </section>
    <section className="card p-5 space-y-4"><div><h2 className="text-lg font-semibold">Add an ad unit</h2><p className="text-xs text-slate-500 mt-1">Copy the real placement ID from your ad network dashboard. Yandex IDs usually start with R-M-.</p></div>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
      <label className="text-sm">Network<select className="input mt-1 w-full" value={newUnit.provider} onChange={e=>setNewUnit(v=>({...v,provider:e.target.value as Provider,format:'BANNER'}))}>{providers.map(p=><option key={p} value={p}>{names[p]}</option>)}</select></label>
@@ -200,7 +166,7 @@ export default function AdManagement(){
    </section>
    <section className="card overflow-hidden"><div className="p-4 flex flex-wrap justify-between items-center gap-2"><h2 className="font-semibold">Ad units ({data.units.length})</h2><p className="text-xs text-slate-500">Disable an ID without deleting it.</p></div>
     <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-slate-600"><tr>{['Name','Network','Format','Ad unit ID','Active',''].map(x=><th className="p-3 text-left font-medium" key={x}>{x}</th>)}</tr></thead><tbody>{data.units.map(u=><tr key={u.id} className="border-t border-slate-100"><td className="p-3 font-medium">{u.name}</td><td className="p-3 text-slate-600">{names[u.provider]}</td><td className="p-3">{u.format}</td><td className="p-3 max-w-52 truncate" title={u.unitId}>{u.unitId}</td><td className="p-3"><input aria-label={'Enable '+u.name} type="checkbox" className="ui-switch" checked={u.enabled} onChange={e=>setData(d=>({...d,units:d.units.map(x=>x.id===u.id?{...x,enabled:e.target.checked}:x)}))}/></td><td className="p-3"><button type="button" className="ui-icon-danger" aria-label={'Delete '+u.name} onClick={()=>removeUnit(u.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table></div>
-    {data.units.length===0&&<div className="p-8 text-center text-sm text-slate-500">No units are saved yet. You can add all five Yandex mobile ad formats above.</div>}
+    {data.units.length===0&&<div className="p-8 text-center text-sm text-slate-500">No units saved yet. Add an ad unit using the form above, then assign it to a placement.</div>}
    </section>
    <button type="button" className="ui-btn ui-btn-secondary" onClick={()=>setTab('placements')}>Assign units to pages</button>
   </div>}
