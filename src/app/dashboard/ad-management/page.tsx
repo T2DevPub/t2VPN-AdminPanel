@@ -193,10 +193,10 @@ export default function AdManagement(){
   <section className="card p-4 space-y-4">
    <button type="button" aria-expanded={advanced} className="w-full flex items-center justify-between gap-2 text-sm font-semibold" onClick={()=>setAdvanced(v=>!v)}><span className="flex items-center gap-2"><Settings2 size={17}/>Advanced settings</span>{advanced?<ChevronUp size={17}/>:<ChevronDown size={17}/>}</button>
    {advanced&&<div className="space-y-4 border-t border-slate-100 pt-4">
-    <label className="flex justify-between items-center gap-4 text-sm">Enable rewarded Plus unlock<input type="checkbox" className="ui-switch" checked={data.rewardedUnlockEnabled} onChange={e=>setData(d=>({...d,rewardedUnlockEnabled:e.target.checked}))}/></label>
+    <label className="flex justify-between items-center gap-4 text-sm">Enable Google-verified Plus unlock<input type="checkbox" className="ui-switch" checked={data.rewardedUnlockEnabled} onChange={e=>setData(d=>({...d,rewardedUnlockEnabled:e.target.checked}))}/></label>
     <label className="block max-w-xs text-sm">App Open cooldown (minutes)<input type="number" min={0} max={1440} className="input mt-2 w-full" value={data.appOpenCooldownMinutes} onChange={e=>setData(d=>({...d,appOpenCooldownMinutes:Number(e.target.value)}))}/></label>
     <div className="grid gap-3 lg:grid-cols-3">{providers.map(provider=><label key={provider} className="block text-sm">{names[provider]} · Optional provider app ID<input className="input mt-1 w-full" value={data.providers[provider].appId} onChange={e=>setData(d=>({...d,providers:{...d.providers,[provider]:{...d.providers[provider],appId:e.target.value}}}))} placeholder="Only if your SDK requires one"/></label>)}</div>
-    <p className="text-xs text-slate-500">Yandex ad units typically use their R-M- placement ID; do not enter that ID in the optional provider app ID field. Verified rewarded unlock currently requires Google server-side verification.</p>
+    <p className="text-xs text-slate-500">Yandex ad units typically use their R-M- placement ID; do not enter that ID in the optional provider app ID field. Verified 30-minute Plus unlock requires Google server-side verification. Yandex rewarded units can still be used for non-premium ad rewards.</p>
    </div>}
   </section>
   <footer className="flex flex-wrap gap-3 items-center justify-between">
