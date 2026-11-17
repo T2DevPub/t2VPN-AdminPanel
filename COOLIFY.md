@@ -53,3 +53,36 @@ You should see `Subscription token unique index is ready`, followed by
 `The database is already in sync` or a successful `prisma db push`, then
 admin account provisioning and Next.js startup. If Prisma warns about a
 *different* potentially destructive schema change, investigate that separately.
+
+## Ad Management save behind Coolify's reverse proxy
+
+The administrator's browser sends requests from `https://vpn2.t2dev.in`, but
+the Next.js request URL inside Docker can be `http://app:3000`. Comparing
+these two URLs causes a false `403 Invalid origin` when saving Ad Management.
+
+This deployment now passes `ADMIN_PUBLIC_ORIGIN` into the app container.
+The Docker Compose default is `https://vpn2.t2dev.in`; change the variable
+in Coolify **only if** the public dashboard's origin changes (include scheme,
+hostname, and port when nonstandard). Example:
+
+```
+ADMIN_PUBLIC_ORIGIN=https://vpn2.t2dev.in
+```
+
+The save endpoint permits exactly that origin and still rejects other browser
+origins, including requests that spoof `X-Forwarded-Host`. Keep the variable
+server-side; it does not contain a secret. The origin must match your address
+bar exactly; do not use `http://app:3000` or `http://db:5432`.
+
+The simplified Ad Management UI has three steps: assign placements, add
+provider units, and optionally create country rules. Provider toggles and
+the global ad switch appear at the top; less-used settings are under
+**Advanced settings**. The API storage key remains `ad_management_v2`,
+and the Android `GET /api/mobile/ads` contract is unchanged.
+
+After redeploy: open `/dashboard/ad-management`, switch Yandex on,
+add the ad units, assign them to the banner/native/interstitial placements,
+click **Save changes**, then confirm the green saved message and refresh.
+For Russia: inspect `/api/mobile/ads?country=RU` and make sure the
+placement has `enabled: true` and `primary.provider: "ADFOX"`.
+A saved ad unit does not automatically guarantee ad fill in Android.
