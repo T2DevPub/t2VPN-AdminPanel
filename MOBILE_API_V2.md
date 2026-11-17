@@ -153,3 +153,30 @@ Yandex documentation:
 - https://ads.yandex.com/helpcenter/en/dev/android/rewarded
 - https://ads.yandex.com/helpcenter/en/monetization/adfox/connection
 - https://ads.yandex.com/helpcenter/en/support/faq/sdk-integration
+
+## Countries, Today defaults, app presence and Android server labels
+
+The mobile server directory now includes `name` as the **country name**,
+`countryName`, `countryFlag`, and `locationLabel` (country + city).
+The old administrator-entered server name is preserved in `displayName`.
+Keep using `id` for selection and provisioning. Android should display
+`countryFlag + countryName` as the main server-country line and city as
+the secondary line, grouping multiple servers under the same country.
+Do not treat the custom `displayName` as the country name.
+
+The V2 dashboard now defaults to **Today (midnight–now in Asia/Kolkata)** and
+refreshes visible pages every 15 seconds. Analytics can still be filtered to
+Yesterday / 7 / 30 / 90 days / lifetime where available.
+
+A privacy-conscious, authenticated mobile app can optionally POST
+`/api/mobile/events` with `{"event":"APP_HEARTBEAT","countryCode":"IN"}`
+about every 30–45 seconds while in foreground. This updates
+`AppInstallation.lastSeenAt` but does not create a session record.
+The dashboard then shows a distinct “App active now (60s)” count. Android
+must implement that heartbeat before this metric becomes meaningful.
+Never interpret a phone/app heartbeat as an established VPN tunnel.
+
+**Actual VPN live sessions and bytes require trusted VPN server/gateway
+telemetry** through `POST /api/telemetry`. That endpoint remains secret-protected
+and the token must never be included in Android. If no gateway collector is
+connected, trusted connection and bandwidth counts are not estimated.
