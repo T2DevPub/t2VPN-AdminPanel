@@ -31,6 +31,9 @@ const auth={Authorization:'Bearer '+tokenResult.data.accessToken};
 const current=await call('/api/mobile/me',{headers:auth});
 assert.equal(current.status,200);
 assert.equal(current.data.plan,'FREE');
+const ping=await call('/api/mobile/events',json({event:'APP_HEARTBEAT',countryCode:'IN'},auth));
+assert.equal(ping.status,202,'Authenticated mobile presence heartbeat should succeed');
+
 const repeated=await call('/api/mobile/auth/token',json({installationId:id,challengeId:challenge.data.challengeId,signature}));
 assert.equal(repeated.status,401,'Replayed challenge must fail');
 const reward=await call('/api/mobile/reward/verify',{method:'POST',headers:auth});
@@ -40,6 +43,16 @@ const login=await call('/api/auth/login',json({username:process.env.ADMIN_USERNA
 assert.equal(login.status,200,JSON.stringify(login.data));
 const cookie=(login.headers.get('set-cookie')||'').split(';')[0];
 assert.ok(cookie.startsWith('t2vpn_admin_session='));
+const report=await call('/api/analytics?period=today',{headers:{Cookie:cookie}});
+assert.equal(report.status,200);
+assert.equal(report.data.period,'today');
+assert.equal(report.data.timezone,'Asia/Kolkata');
+assert.ok(report.data.totals.activeInstallationsNow>=1);
+assert.equal(report.data.totals.activeSessionRecords,0,'App heartbeat is not a verified VPN session');
+const devices=await call('/api/devices',{headers:{Cookie:cookie}});
+assert.equal(devices.status,200);
+assert.ok(devices.data.summary.activeNow>=1);
+
 
 const savedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
 assert.equal(savedAds.status,200);
@@ -97,6 +110,11 @@ const directory=await call('/api/mobile/servers');
 assert.equal(directory.status,200);
 assert.equal(directory.data.servers.length,1);
 assert.equal(directory.data.servers[0].countryCode,'DE');
+assert.equal(directory.data.servers[0].name,'Germany','Android primary name must be the country');
+assert.equal(directory.data.servers[0].displayName,'CI Server','Admin display name is preserved');
+assert.equal(directory.data.servers[0].countryFlag,'🇩🇪');
+assert.equal(directory.data.servers[0].locationLabel,'Germany · Berlin');
+
 const published=JSON.stringify(directory.data);
 assert.ok(!published.includes('ci-only-secret'));
 assert.ok(!published.includes('ovpnConfig'));
