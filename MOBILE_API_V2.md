@@ -135,12 +135,28 @@ formats, but Adfox *direct sales* applies only to Banner, Native and
 Interstitial. App Open and Rewarded use eligible Yandex Advertising Network
 inventory; they are not direct-sales Adfox formats.
 
-**Secure rewarded Plus restriction:** Yandex Mobile Ads does not support
-server-side reward verification. This backend only authorizes T2VPN's
-30-minute Plus unlock through Google rewarded SSV. Yandex Rewarded units may
-be stored in the library but cannot be selected for the `rewarded_unlock`
-placement or country override, and `/api/mobile/ads` filters out any older
-unsupported Yandex reward assignment.
+**Rewarded ad configuration:** The `rewarded_unlock` ad placement now accepts
+both Yandex (`ADFOX`) and Google (`ADX`) rewarded ad units. Android can
+display an eligible Yandex rewarded ad using the SDK `RewardedAdLoader`
+and client callback `onRewarded`. This callback **is not server-side
+proof of an ad view**, and **must not authorize 30-minute Plus access**.
+Yandex's official SDK does not offer server-side reward verification.
+
+A separate `verifiedPlusUnlockAvailable` boolean in
+`GET /api/mobile/ads` is true only if Google SSV-eligible rewarded
+units are assigned and enabled. `verifiedPlusRewardProvider` is `ADX`.
+Keep the `rewardedUnlockEnabled` setting for existing clients, but
+do not interpret it as proof that a Yandex unit can grant Plus.
+
+The existing `POST /api/mobile/reward/prepare`, Google's signed SSV
+callback and `POST /api/mobile/reward/verify` remain Google-only.
+When only Yandex rewarded units are configured, `/reward/prepare`
+returns HTTP 503 and **does not grant Plus**.
+
+To use Yandex for a different, low-risk reward, implement its Android
+client-side callback and reward UX separately. Do not confuse SDK
+`onRewarded` with a verified entitlement. Other ad formats can remain
+Google by assigning Google units to those placements.
 
 Yandex App Open is supported in backend placement configuration, but Android
 must actually implement `ADFOX` + `APP_OPEN` through the Yandex
