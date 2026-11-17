@@ -44,10 +44,16 @@ assert.ok(cookie.startsWith('t2vpn_admin_session='));
 const savedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
 assert.equal(savedAds.status,200);
 const testUnit={id:'ci_adfox_01',name:'CI Yandex Banner',provider:'ADFOX',format:'BANNER',unitId:'R-M-9999999-1',enabled:true};
+const yandexUnits=[
+ {id:'ci_yandex_native',name:'CI Yandex Native',provider:'ADFOX',format:'NATIVE',unitId:'R-M-9999999-2',enabled:true},
+ {id:'ci_yandex_interstitial',name:'CI Yandex Interstitial',provider:'ADFOX',format:'INTERSTITIAL',unitId:'R-M-9999999-3',enabled:true},
+ {id:'ci_yandex_rewarded',name:'CI Yandex Rewarded',provider:'ADFOX',format:'REWARDED',unitId:'R-M-9999999-4',enabled:true},
+ {id:'ci_yandex_app_open',name:'CI Yandex App Open',provider:'ADFOX',format:'APP_OPEN',unitId:'R-M-9999999-5',enabled:true}
+];
 const newAds={...savedAds.data,adsEnabled:true,
  providers:{...savedAds.data.providers,ADFOX:{enabled:true,appId:''}},
- units:[...savedAds.data.units,testUnit],
- placements:savedAds.data.placements.map(p=>p.key==='home_banner'?{...p,enabled:true,unitRef:testUnit.id,fallbackRef:''}:p)
+ units:[...savedAds.data.units,testUnit,...yandexUnits],
+ placements:savedAds.data.placements.map(p=>p.key==='home_banner'?{...p,enabled:true,unitRef:testUnit.id,fallbackRef:''}:p.key==='app_open'?{...p,enabled:true,unitRef:'ci_yandex_app_open',fallbackRef:''}:p)
 };
 const rejectOrigin=await call('/api/ad-management',{method:'PUT',headers:{
  Cookie:cookie,Origin:'https://attacker.invalid','Content-Type':'application/json'
@@ -61,6 +67,20 @@ const persistedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
 assert.equal(persistedAds.data.units.find(u=>u.id===testUnit.id)?.unitId,testUnit.unitId);
 const mobileAd=await call('/api/mobile/ads?country=RU');
 assert.equal(mobileAd.data.placements.find(p=>p.key==='home_banner')?.primary?.unitId,testUnit.unitId);
+
+assert.equal(mobileAd.data.placements.find(p=>p.key==='app_open')?.primary?.unitId,'R-M-9999999-5','Yandex App Open must reach Android');
+assert.equal(persistedAds.data.units.filter(u=>u.provider==='ADFOX').length,5,'All five Yandex ad formats must be persisted');
+const unsafeReward={...newAds,placements:newAds.placements.map(p=>p.key==='rewarded_unlock'?{...p,enabled:true,unitRef:'ci_yandex_rewarded',fallbackRef:''}:p)};
+const blockedReward=await call('/api/ad-management',{method:'PUT',headers:{
+ Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
+},body:JSON.stringify(unsafeReward)});
+assert.equal(blockedReward.status,400,'Yandex rewarded must not authorize server-side Plus unlock');
+const unsafeRule={...newAds,countryRules:[...newAds.countryRules,{id:'ci_ru_reward',country:'RU',placement:'rewarded_unlock',unitRef:'ci_yandex_rewarded',enabled:true}]};
+const blockedRule=await call('/api/ad-management',{method:'PUT',headers:{
+ Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
+},body:JSON.stringify(unsafeRule)});
+assert.equal(blockedRule.status,400,'Yandex rewarded override must not authorize Plus unlock');
+
 
 const metadata={name:'CI Server',country:'Germany',countryCode:'DE',city:'Berlin',host:'ci-vpn.example.com',
  deployedOn:'CI',tier:'FREE',visibility:'BOTH',enabled:true,freeProfile:1,plusProfile:1};
@@ -83,4 +103,4 @@ assert.ok(!published.includes('ovpnConfig'));
 assert.ok(!published.includes('passwordEncrypted'));
 const disabled=await call('/api/mobile/connect',json({serverId:made.data.id},auth));
 assert.equal(disabled.status,503,'Profile distribution must be off by default');
-console.log('V2 API smoke tests passed: auth, replay protection, public metadata, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
+console.log('V2 API smoke tests passed: auth, replay protection, public metadata, five Yandex formats and verified reward safeguards, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
