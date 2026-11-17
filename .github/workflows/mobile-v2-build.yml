@@ -8,6 +8,7 @@ on:
       - 'fix/ad-management-save-simplify-*'
       - 'feature/yandex-five-mobile-formats-*'
       - 'fix/v2-persistent-redeploy-guards-*'
+      - 'feature/dashboard-country-today-live-*'
   pull_request:
     branches: [main]
 
