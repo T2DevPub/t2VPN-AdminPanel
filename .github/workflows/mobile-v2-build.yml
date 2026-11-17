@@ -9,6 +9,7 @@ on:
       - 'feature/yandex-five-mobile-formats-*'
       - 'fix/v2-persistent-redeploy-guards-*'
       - 'feature/dashboard-country-today-live-*'
+      - 'fix/rewarded-unlock-setup-ui-*'
   pull_request:
     branches: [main]
 
