@@ -83,17 +83,28 @@ assert.equal(mobileAd.data.placements.find(p=>p.key==='home_banner')?.primary?.u
 
 assert.equal(mobileAd.data.placements.find(p=>p.key==='app_open')?.primary?.unitId,'R-M-9999999-5','Yandex App Open must reach Android');
 assert.equal(persistedAds.data.units.filter(u=>u.provider==='ADFOX').length,5,'All five Yandex ad formats must be persisted');
-const unsafeReward={...newAds,placements:newAds.placements.map(p=>p.key==='rewarded_unlock'?{...p,enabled:true,unitRef:'ci_yandex_rewarded',fallbackRef:''}:p)};
-const blockedReward=await call('/api/ad-management',{method:'PUT',headers:{
+// Yandex rewarded is configurable for ad display, but never grants Plus.
+const yandexRewardConfig={...newAds,rewardedUnlockEnabled:true,placements:newAds.placements.map(p=>
+ p.key==='rewarded_unlock'?{...p,enabled:true,unitRef:'ci_yandex_rewarded',fallbackRef:''}:p)};
+const savedReward=await call('/api/ad-management',{method:'PUT',headers:{
  Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
-},body:JSON.stringify(unsafeReward)});
-assert.equal(blockedReward.status,400,'Yandex rewarded must not authorize server-side Plus unlock');
-const unsafeRule={...newAds,countryRules:[...newAds.countryRules,{id:'ci_ru_reward',country:'RU',placement:'rewarded_unlock',unitRef:'ci_yandex_rewarded',enabled:true}]};
-const blockedRule=await call('/api/ad-management',{method:'PUT',headers:{
+},body:JSON.stringify(yandexRewardConfig)});
+assert.equal(savedReward.status,200,JSON.stringify(savedReward.data));
+const yandexRewardApi=await call('/api/mobile/ads?country=IN');
+assert.equal(yandexRewardApi.status,200);
+assert.equal(yandexRewardApi.data.placements.find(p=>p.key==='rewarded_unlock')?.primary?.provider,'ADFOX');
+assert.equal(yandexRewardApi.data.placements.find(p=>p.key==='rewarded_unlock')?.primary?.unitId,'R-M-9999999-4');
+assert.equal(yandexRewardApi.data.verifiedPlusUnlockAvailable,false,'Yandex callbacks are not Google SSV');
+const rejectedUnverified=await call('/api/mobile/reward/prepare',json({},auth));
+assert.equal(rejectedUnverified.status,503,'No Google SSV means Plus unlock must stay disabled');
+// A country override with Yandex rewarded must be stored without bypassing Google reward verification.
+const yandexRewardCountry={...yandexRewardConfig,countryRules:[...newAds.countryRules,{
+ id:'ci_ru_reward',country:'RU',placement:'rewarded_unlock',unitRef:'ci_yandex_rewarded',enabled:true}]};
+const countrySaved=await call('/api/ad-management',{method:'PUT',headers:{
  Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
-},body:JSON.stringify(unsafeRule)});
-assert.equal(blockedRule.status,400,'Yandex rewarded override must not authorize Plus unlock');
-
+},body:JSON.stringify(yandexRewardCountry)});
+assert.equal(countrySaved.status,200,JSON.stringify(countrySaved.data));
+assert.equal((await call('/api/mobile/ads?country=RU')).data.placements.find(p=>p.key==='rewarded_unlock')?.primary?.provider,'ADFOX');
 
 const metadata={name:'CI Server',country:'Germany',countryCode:'DE',city:'Berlin',host:'ci-vpn.example.com',
  deployedOn:'CI',tier:'FREE',visibility:'BOTH',enabled:true,freeProfile:1,plusProfile:1};
@@ -121,4 +132,4 @@ assert.ok(!published.includes('ovpnConfig'));
 assert.ok(!published.includes('passwordEncrypted'));
 const disabled=await call('/api/mobile/connect',json({serverId:made.data.id},auth));
 assert.equal(disabled.status,503,'Profile distribution must be off by default');
-console.log('V2 API smoke tests passed: auth, replay protection, public metadata, five Yandex formats and verified reward safeguards, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
+console.log('V2 API smoke tests passed: auth, replay protection, public metadata, Yandex rewarded selection without unverified Plus grants, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
