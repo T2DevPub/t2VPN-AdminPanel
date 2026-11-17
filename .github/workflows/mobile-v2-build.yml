@@ -31,6 +31,7 @@ jobs:
       AUTH_SECRET: test-only-placeholder-do-not-use-in-production-abcdefghijk
       ADMIN_USERNAME: ci
       ADMIN_PASSWORD: placeholder-only-for-ci
+      ADMIN_PUBLIC_ORIGIN: http://localhost:3000
       VPN_PROFILE_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       MOBILE_PROVISIONING_ENABLED: 'false'
     steps:
