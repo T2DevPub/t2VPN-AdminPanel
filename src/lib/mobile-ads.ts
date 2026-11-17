@@ -5,9 +5,9 @@ type Key=typeof adKeys[number];
 export type AdUnit={id:string;name:string;provider:'ADX'|'META'|'ADFOX';format:string;unitId:string;enabled:boolean};
 export type AdPlacement={key:Key;enabled:boolean;unitRef:string;fallbackRef:string};
 export type AdCountryRule={country:string;placement:Key;unitRef:string;enabled:boolean};
-export type AdConfig={version:2;adsEnabled:boolean;providers:Record<string,{enabled:boolean;appId:string}>;units:AdUnit[];placements:AdPlacement[];countryRules:AdCountryRule[];appOpenCooldownMinutes:number;rewardedUnlockEnabled:boolean};
+export type AdConfig={version:2;adsEnabled:boolean;providers:Record<string,{enabled:boolean;appId:string}>;units:AdUnit[];placements:AdPlacement[];countryRules:AdCountryRule[];rewardedUnlockEnabled:boolean};
 const defaultProviders={ADX:{enabled:false,appId:''},META:{enabled:false,appId:''},ADFOX:{enabled:false,appId:''}};
-const defaults:AdConfig={version:2,adsEnabled:false,providers:defaultProviders,units:[],placements:adKeys.map(key=>({key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],appOpenCooldownMinutes:30,rewardedUnlockEnabled:false};
+const defaults:AdConfig={version:2,adsEnabled:false,providers:defaultProviders,units:[],placements:adKeys.map(key=>({key,enabled:false,unitRef:'',fallbackRef:''})),countryRules:[],rewardedUnlockEnabled:false};
 export async function readAdConfig():Promise<AdConfig>{
  const item=await db.appSetting.findUnique({where:{key:'ad_management_v2'}});
  if(!item)return defaults;
@@ -27,7 +27,9 @@ export function publicAdConfig(c:AdConfig,countryCode:string){
  return {schemaVersion:2,adsEnabled:c.adsEnabled,providers:Object.fromEntries(Object.entries(c.providers).map(([provider,x])=>[provider,{enabled:x.enabled,appId:x.appId}])),
   rewardedUnlockEnabled:c.rewardedUnlockEnabled,
   // Yandex has client-only reward callbacks; server-side Plus grants remain Google SSV only.
-  verifiedPlusRewardProvider:'ADX',verifiedPlusUnlockAvailable:eligibleRewardedUnitIds(c).size>0,appOpenCooldownMinutes:c.appOpenCooldownMinutes,
+  verifiedPlusRewardProvider:'ADX',verifiedPlusUnlockAvailable:eligibleRewardedUnitIds(c).size>0,
+  // Backward-compatible response for older Android clients; 0 means no V2 cooldown.
+  appOpenCooldownMinutes:0,
   placements:c.placements.map(p=>{
    const override=c.countryRules.find(r=>r.country===country&&r.placement===p.key&&r.enabled);
    const primary=(override?.unitRef?unit(override.unitRef,p.key):null)||unit(p.unitRef,p.key);
