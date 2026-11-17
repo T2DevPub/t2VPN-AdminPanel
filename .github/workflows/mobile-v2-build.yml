@@ -7,6 +7,7 @@ on:
       - 'fix/coolify-safe-prisma-unique-index-*'
       - 'fix/ad-management-save-simplify-*'
       - 'feature/yandex-five-mobile-formats-*'
+      - 'fix/v2-persistent-redeploy-guards-*'
   pull_request:
     branches: [main]
 
@@ -71,5 +72,30 @@ jobs:
           MOBILE_PROVISIONING_ENABLED=true npx next start -H 0.0.0.0 -p 3001 > /tmp/next-v2-provision.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://localhost:3001/api/health >/dev/null && break; sleep 2; done
           SMOKE_BASE_URL=http://localhost:3001 node scripts/mobile-provisioning-smoke.mjs
+      - name: Validate volumes and safe startup order
+        run: |
+          docker compose config --quiet
+          node scripts/verify-storage-config.mjs
+          sh -n scripts/backup-before-migration.sh
+          sh -n scripts/docker-start.sh
       - name: Build Coolify Docker image
         run: docker build -t t2vpn-admin-v2 .
+      - name: Verify backup client and a real PostgreSQL snapshot
+        run: |
+          mkdir -p "$RUNNER_TEMP/t2vpn-backups"
+          printf 'build' > "$RUNNER_TEMP/ci-pg-password"
+          chmod 600 "$RUNNER_TEMP/ci-pg-password"
+          docker run --rm --network host --entrypoint sh \
+            -v "$RUNNER_TEMP/t2vpn-backups:/backups" \
+            -v "$RUNNER_TEMP/ci-pg-password:/ci-pg-password:ro" \
+            -e BACKUP_DB_PASSWORD_FILE=/ci-pg-password \
+            -e BACKUP_DB_HOST=127.0.0.1 \
+            -e BACKUP_DB_USER=build \
+            -e BACKUP_DB_NAME=build \
+            t2vpn-admin-v2 scripts/backup-before-migration.sh
+          test -f "$RUNNER_TEMP/t2vpn-backups/.database_initialized"
+          test "$(find "$RUNNER_TEMP/t2vpn-backups" -maxdepth 1 -name 'predeploy-*.dump' | wc -l)" -eq 1
+          docker run --rm --entrypoint sh \
+            -v "$RUNNER_TEMP/t2vpn-backups:/backups:ro" \
+            t2vpn-admin-v2 -ec 'pg_restore --list /backups/predeploy-*.dump > /dev/null'
+
