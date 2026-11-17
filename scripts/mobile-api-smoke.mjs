@@ -40,6 +40,28 @@ const login=await call('/api/auth/login',json({username:process.env.ADMIN_USERNA
 assert.equal(login.status,200,JSON.stringify(login.data));
 const cookie=(login.headers.get('set-cookie')||'').split(';')[0];
 assert.ok(cookie.startsWith('t2vpn_admin_session='));
+
+const savedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
+assert.equal(savedAds.status,200);
+const testUnit={id:'ci_adfox_01',name:'CI Yandex Banner',provider:'ADFOX',format:'BANNER',unitId:'R-M-9999999-1',enabled:true};
+const newAds={...savedAds.data,adsEnabled:true,
+ providers:{...savedAds.data.providers,ADFOX:{enabled:true,appId:''}},
+ units:[...savedAds.data.units,testUnit],
+ placements:savedAds.data.placements.map(p=>p.key==='home_banner'?{...p,enabled:true,unitRef:testUnit.id,fallbackRef:''}:p)
+};
+const rejectOrigin=await call('/api/ad-management',{method:'PUT',headers:{
+ Cookie:cookie,Origin:'https://attacker.invalid','Content-Type':'application/json'
+},body:JSON.stringify(newAds)});
+assert.equal(rejectOrigin.status,403,'Third-party browser origin should not save admin settings');
+const allowOrigin=await call('/api/ad-management',{method:'PUT',headers:{
+ Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
+},body:JSON.stringify(newAds)});
+assert.equal(allowOrigin.status,200,JSON.stringify(allowOrigin.data));
+const persistedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
+assert.equal(persistedAds.data.units.find(u=>u.id===testUnit.id)?.unitId,testUnit.unitId);
+const mobileAd=await call('/api/mobile/ads?country=RU');
+assert.equal(mobileAd.data.placements.find(p=>p.key==='home_banner')?.primary?.unitId,testUnit.unitId);
+
 const metadata={name:'CI Server',country:'Germany',countryCode:'DE',city:'Berlin',host:'ci-vpn.example.com',
  deployedOn:'CI',tier:'FREE',visibility:'BOTH',enabled:true,freeProfile:1,plusProfile:1};
 const form=new FormData();
@@ -61,4 +83,4 @@ assert.ok(!published.includes('ovpnConfig'));
 assert.ok(!published.includes('passwordEncrypted'));
 const disabled=await call('/api/mobile/connect',json({serverId:made.data.id},auth));
 assert.equal(disabled.status,503,'Profile distribution must be off by default');
-console.log('V2 API smoke tests passed: auth, replay protection, public metadata, ad config, admin CRUD, provisioning gate.');
+console.log('V2 API smoke tests passed: auth, replay protection, public metadata, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
