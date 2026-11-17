@@ -21,7 +21,7 @@ if ! command -v pg_dump >/dev/null 2>&1 || ! command -v pg_restore >/dev/null 2>
   echo "BACKUP ERROR: pg_dump/pg_restore are unavailable; refusing schema changes." >&2
   exit 1
 fi
-tmp="$(mktemp "$BACKUP_DIR/.predeploy-XXXXXXXX.partial")"
+tmp="$(mktemp "$BACKUP_DIR/.predeploy-XXXXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 trap 'exit 1' HUP INT TERM
 PGPASSWORD="$(cat "$DB_PASSWORD_FILE")" pg_dump \
