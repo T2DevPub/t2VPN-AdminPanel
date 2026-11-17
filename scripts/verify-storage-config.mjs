@@ -17,7 +17,7 @@ assert.ok(hasVolume('app','/run/t2vpn','t2vpn_secrets'),'App must keep its origi
 assert.ok(hasVolume('app','/backups','t2vpn_backups'),'App must write backup archives to a persistent volume');
 assert.ok(hasVolume('secrets-init','/pgdata','t2vpn_pgdata'),'Volume guard must inspect existing PostgreSQL data');
 assert.ok(hasVolume('secrets-init','/backups','t2vpn_backups'),'Volume guard must read the startup sentinel');
-assert.ok((config.services['secrets-init']?.command||'').includes('STORAGE GUARD'),'Missing fail-closed storage protection');
+assert.ok(JSON.stringify(config.services['secrets-init']?.command||'').includes('STORAGE GUARD'),'Missing fail-closed storage protection');
 const startup=readFileSync('scripts/docker-start.sh','utf8');
 const first=startup.indexOf('sh scripts/backup-before-migration.sh');
 const schema=startup.indexOf('npm run db:prepare');
