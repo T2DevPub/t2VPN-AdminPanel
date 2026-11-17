@@ -10,6 +10,7 @@ on:
       - 'fix/v2-persistent-redeploy-guards-*'
       - 'feature/dashboard-country-today-live-*'
       - 'fix/rewarded-unlock-setup-ui-*'
+      - 'fix/remove-app-open-cooldown-*'
   pull_request:
     branches: [main]
 
