@@ -63,7 +63,7 @@ const yandexUnits=[
  {id:'ci_yandex_rewarded',name:'CI Yandex Rewarded',provider:'ADFOX',format:'REWARDED',unitId:'R-M-9999999-4',enabled:true},
  {id:'ci_yandex_app_open',name:'CI Yandex App Open',provider:'ADFOX',format:'APP_OPEN',unitId:'R-M-9999999-5',enabled:true}
 ];
-const newAds={...savedAds.data,adsEnabled:true,
+const newAds={...savedAds.data,appOpenCooldownMinutes:30,adsEnabled:true,
  providers:{...savedAds.data.providers,ADFOX:{enabled:true,appId:''}},
  units:[...savedAds.data.units,testUnit,...yandexUnits],
  placements:savedAds.data.placements.map(p=>p.key==='home_banner'?{...p,enabled:true,unitRef:testUnit.id,fallbackRef:''}:p.key==='app_open'?{...p,enabled:true,unitRef:'ci_yandex_app_open',fallbackRef:''}:p)
@@ -76,12 +76,15 @@ const allowOrigin=await call('/api/ad-management',{method:'PUT',headers:{
  Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
 },body:JSON.stringify(newAds)});
 assert.equal(allowOrigin.status,200,JSON.stringify(allowOrigin.data));
+assert.equal(Object.hasOwn(allowOrigin.data,'appOpenCooldownMinutes'),false,'Admin cannot configure an App Open cooldown');
 const persistedAds=await call('/api/ad-management',{headers:{Cookie:cookie}});
 assert.equal(persistedAds.data.units.find(u=>u.id===testUnit.id)?.unitId,testUnit.unitId);
+assert.equal(Object.hasOwn(persistedAds.data,'appOpenCooldownMinutes'),false,'Old cooldown must be discarded after save');
 const mobileAd=await call('/api/mobile/ads?country=RU');
 assert.equal(mobileAd.data.placements.find(p=>p.key==='home_banner')?.primary?.unitId,testUnit.unitId);
 
 assert.equal(mobileAd.data.placements.find(p=>p.key==='app_open')?.primary?.unitId,'R-M-9999999-5','Yandex App Open must reach Android');
+assert.equal(mobileAd.data.appOpenCooldownMinutes,0,'Android must receive no cooldown, even if a legacy admin value was submitted');
 assert.equal(persistedAds.data.units.filter(u=>u.provider==='ADFOX').length,5,'All five Yandex ad formats must be persisted');
 // Yandex rewarded is configurable for ad display, but never grants Plus.
 const yandexRewardConfig={...newAds,rewardedUnlockEnabled:true,placements:newAds.placements.map(p=>
