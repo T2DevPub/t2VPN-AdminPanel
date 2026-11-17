@@ -101,7 +101,7 @@ export default function AdManagement(){
  function addYandexUnits(){
   const entries=yandexOrder.map(format=>({format,unitId:yandexUnitInputs[format].trim()})).filter(x=>x.unitId);
   if(entries.length===0){setNotice({kind:'error',text:'Enter at least one Yandex ad unit ID.'});return}
-  if(entries.some(x=>!/^R-M-\\d+-\\d+$/.test(x.unitId))){setNotice({kind:'error',text:'Yandex mobile IDs should look like R-M-1234567-1. Correct any invalid IDs before adding.'});return}
+  if(entries.some(x=>!/^R-M-\d+-\d+$/.test(x.unitId))){setNotice({kind:'error',text:'Yandex mobile IDs should look like R-M-1234567-1. Correct any invalid IDs before adding.'});return}
   if(new Set(entries.map(x=>x.unitId)).size!==entries.length){setNotice({kind:'error',text:'Use a separate mobile unit ID for each Yandex ad format.'});return}
   const conflicts=entries.filter(e=>data.units.some(u=>u.provider==='ADFOX'&&u.unitId===e.unitId&&u.format!==e.format));
   if(conflicts.length){setNotice({kind:'error',text:'One of these Yandex unit IDs already exists under a different format.'});return}
