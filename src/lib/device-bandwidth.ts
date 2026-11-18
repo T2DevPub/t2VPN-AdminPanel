@@ -55,7 +55,7 @@ export function quotaDisplayStatus(args:{
  const fresh=Boolean(gatewayReportedAt&&((args.now||new Date()).getTime()-gatewayReportedAt.getTime())<=120000);
  const acknowledged=fresh&&gatewayPolicyRevision===decision.policyRevision&&gatewayAppliedMbps===decision.targetLimitMbps;
  if(decision.targetLimitMbps!==null)return acknowledged?'throttled':'pending';
- if(settings.enforcementEnabled&&!acknowledged&&gatewayAppliedMbps!==null)return 'pending';
+ if(!acknowledged&&gatewayAppliedMbps!==null)return 'pending';
  return decision.overQuota?'over_quota':'normal';
 }
 export function anonymousDeviceId(id:string):string{
