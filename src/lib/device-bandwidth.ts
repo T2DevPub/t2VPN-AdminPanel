@@ -22,10 +22,10 @@ export function validIstDate(value:string):boolean{
   return !Number.isNaN(date.getTime())&&istDay(date)===value;
 }
 export function quotaBytes(settings:QuotaSettings):bigint{
-  return BigInt(settings.dailyLimitGiB)*1024n*1024n*1024n;
+  return BigInt(settings.dailyLimitGiB)*BigInt(1024)*BigInt(1024)*BigInt(1024);
 }
 export function billableBytes(measured:bigint,baseline:bigint):bigint{
-  return measured>baseline?measured-baseline:0n;
+  return measured>baseline?measured-baseline:BigInt(0);
 }
 export function quotaRevision(args:{
   day:string;settings:QuotaSettings;resetAt:Date|null;overQuota:boolean
