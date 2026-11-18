@@ -57,7 +57,7 @@ export async function POST(req:Request){
     await tx.vpnUsageSession.update({where:{id:current.id},data:{lastHeartbeatAt:new Date(),
      bytesIn:acceptedIn,bytesOut:acceptedOut,
      ...(d.event==='DISCONNECT'?{disconnectedAt:new Date()}:{})}});
-    if(delta>0n){
+    if(delta>BigInt(0)){
      // Trust only measured gateway counters, not Android/client claims.
      // Gateway deltas are attributed to the IST day when received; gateways
      // should report frequently around midnight for close daily accounting.
