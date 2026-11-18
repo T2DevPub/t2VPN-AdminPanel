@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {db} from '@/lib/db';
 import {timingSafeEqual} from 'node:crypto';
 import {z} from 'zod';
+import {istDay} from '@/lib/device-bandwidth';
 export const runtime='nodejs';
 const schema=z.object({
  installationId:z.string().uuid(),deviceModel:z.string().max(100).optional(),manufacturer:z.string().max(80).optional(),
@@ -43,14 +44,30 @@ export async function POST(req:Request){
     sessionId=s.id;
    }
    if((d.event==='HEARTBEAT'||d.event==='DISCONNECT')&&d.sessionId){
+    // Serialize counter updates for a session so parallel gateway heartbeats
+    // cannot double-count byte deltas in the daily accounting table.
+    await tx.$queryRaw`SELECT "id" FROM "VpnUsageSession" WHERE "id" = ${d.sessionId} FOR UPDATE`;
     const current=await tx.vpnUsageSession.findFirst({where:{id:d.sessionId,installationId:d.installationId,disconnectedAt:null},select:{id:true,bytesIn:true,bytesOut:true}});
     if(!current)throw new Error('Unknown or closed session');
     const bytesIn=d.bytesIn===undefined?current.bytesIn:BigInt(d.bytesIn);
     const bytesOut=d.bytesOut===undefined?current.bytesOut:BigInt(d.bytesOut);
+    const acceptedIn=bytesIn>current.bytesIn?bytesIn:current.bytesIn;
+    const acceptedOut=bytesOut>current.bytesOut?bytesOut:current.bytesOut;
+    const delta=(acceptedIn-current.bytesIn)+(acceptedOut-current.bytesOut);
     await tx.vpnUsageSession.update({where:{id:current.id},data:{lastHeartbeatAt:new Date(),
-     bytesIn:bytesIn>current.bytesIn?bytesIn:current.bytesIn,
-     bytesOut:bytesOut>current.bytesOut?bytesOut:current.bytesOut,
+     bytesIn:acceptedIn,bytesOut:acceptedOut,
      ...(d.event==='DISCONNECT'?{disconnectedAt:new Date()}:{})}});
+    if(delta>0n){
+     // Trust only measured gateway counters, not Android/client claims.
+     // Gateway deltas are attributed to the IST day when received; gateways
+     // should report frequently around midnight for close daily accounting.
+     const day=istDay();
+     await tx.deviceBandwidthDay.upsert({
+      where:{installationId_day:{installationId:d.installationId,day}},
+      create:{installationId:d.installationId,day,bytesMeasured:delta},
+      update:{bytesMeasured:{increment:delta}}
+     });
+    }
    }
    if(d.event==='CONNECTION_FAILED'&&d.serverId){
     const server=await tx.vpnServer.findUnique({where:{id:d.serverId}});
