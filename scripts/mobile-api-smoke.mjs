@@ -129,10 +129,80 @@ assert.equal(directory.data.servers[0].displayName,'CI Server','Admin display na
 assert.equal(directory.data.servers[0].countryFlag,'🇩🇪');
 assert.equal(directory.data.servers[0].locationLabel,'Germany · Berlin');
 
+const emptyBandwidth=await call('/api/devices/bandwidth',{headers:{Cookie:cookie}});
+assert.equal(emptyBandwidth.status,200);
+assert.equal(emptyBandwidth.data.policy.dailyLimitGiB,2,'Daily quota starts at 2 GiB in monitor-only mode');
+assert.equal(emptyBandwidth.data.policy.enforcementEnabled,false,'Never activate shaping on upgrade without opt-in');
+const unauthorizedUsage=await call('/api/devices/bandwidth');
+assert.equal(unauthorizedUsage.status,401,'Bandwidth reporting must require admin login');
+const unauthorizedReset=await call('/api/devices/bandwidth',{method:'PATCH',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({action:'resetQuota',installationRecordId:'clfake',date:'2026-11-18'})});
+assert.equal(unauthorizedReset.status,401,'Quota reset must require admin login');
+const collectorSecret=process.env.TELEMETRY_INGEST_SECRET;
+assert.ok(collectorSecret?.length>=32,'Trusted telemetry secret must exist in CI');
+const collectorAuth={Authorization:'Bearer '+collectorSecret};
+const untrustedPolicy=await call('/api/telemetry/quota?installationId='+id,{headers:auth});
+assert.equal(untrustedPolicy.status,401,'Android JWT must never control gateway speed policy');
+const gatewayConnection=await call('/api/telemetry',json({
+ installationId:id,event:'CONNECT',serverId:made.data.id
+},collectorAuth));
+assert.equal(gatewayConnection.status,202,JSON.stringify(gatewayConnection.data));
+const sessionId=gatewayConnection.data.sessionId;
+assert.ok(sessionId,'Trusted CONNECT event must generate gateway session');
+const measured=2*1024*1024*1024+1000000;
+const measurePayload={installationId:id,event:'HEARTBEAT',sessionId,bytesIn:measured,bytesOut:0};
+const firstMeasure=await call('/api/telemetry',json(measurePayload,collectorAuth));
+assert.equal(firstMeasure.status,202,JSON.stringify(firstMeasure.data));
+const repeatedMeasure=await call('/api/telemetry',json(measurePayload,collectorAuth));
+assert.equal(repeatedMeasure.status,202);
+const bandwidthBefore=await call('/api/devices/bandwidth',{headers:{Cookie:cookie}});
+assert.equal(bandwidthBefore.status,200);
+const recordedDevice=bandwidthBefore.data.items.find(x=>x.measuredBytes===String(measured));
+assert.ok(recordedDevice,'Trusted gateway byte deltas should appear in the daily device table');
+assert.equal(recordedDevice.countedBytes,String(measured),'Duplicate cumulative heartbeat must not increase daily usage');
+assert.equal(recordedDevice.status,'over_quota','No gateway shaping confirmation means no false THROTTLED label');
+assert.equal(recordedDevice.anonymousId.length,16);
+const enableThrottle=await call('/api/devices/bandwidth',{method:'PUT',headers:{
+ Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
+},body:JSON.stringify({enforcementEnabled:true,dailyLimitGiB:2,throttleMbps:3})});
+assert.equal(enableThrottle.status,200,JSON.stringify(enableThrottle.data));
+const desired=await call('/api/telemetry/quota?installationId='+id,{headers:collectorAuth});
+assert.equal(desired.status,200);
+assert.equal(desired.data.action,'THROTTLE');
+assert.equal(desired.data.targetLimitMbps,3);
+const pendingThrottle=await call('/api/devices/bandwidth?status=pending',{headers:{Cookie:cookie}});
+assert.ok(pendingThrottle.data.items.some(x=>x.installationRecordId===recordedDevice.installationRecordId));
+const applied=await call('/api/telemetry/quota',json({
+ installationId:id,policyRevision:desired.data.policyRevision,appliedLimitMbps:3
+},collectorAuth));
+assert.equal(applied.status,202);
+const appliedView=await call('/api/devices/bandwidth?status=throttled',{headers:{Cookie:cookie}});
+assert.ok(appliedView.data.items.some(x=>x.installationRecordId===recordedDevice.installationRecordId),'Only trusted gateway acknowledgement can display THROTTLED');
+const resetQuota=await call('/api/devices/bandwidth',{method:'PATCH',headers:{
+ Cookie:cookie,Origin:'https://vpn2.t2dev.in','Content-Type':'application/json'
+},body:JSON.stringify({action:'resetQuota',installationRecordId:recordedDevice.installationRecordId,date:desired.data.date})});
+assert.equal(resetQuota.status,200,JSON.stringify(resetQuota.data));
+const clearedView=await call('/api/devices/bandwidth',{headers:{Cookie:cookie}});
+const cleared=clearedView.data.items.find(x=>x.installationRecordId===recordedDevice.installationRecordId);
+assert.equal(cleared.measuredBytes,String(measured),'Quota reset must preserve historical measured traffic');
+assert.equal(cleared.countedBytes,'0','Quota reset changes only the baseline');
+assert.equal(cleared.status,'pending','Previously acknowledged shaping must show release pending');
+const release=await call('/api/telemetry/quota?installationId='+id,{headers:collectorAuth});
+assert.equal(release.data.action,'UNTHROTTLE');
+assert.equal(release.data.targetLimitMbps,null);
+assert.notEqual(release.data.policyRevision,desired.data.policyRevision);
+const ackRelease=await call('/api/telemetry/quota',json({
+ installationId:id,policyRevision:release.data.policyRevision,appliedLimitMbps:null
+},collectorAuth));
+assert.equal(ackRelease.status,202);
+const normalView=await call('/api/devices/bandwidth',{headers:{Cookie:cookie}});
+assert.equal(normalView.data.items.find(x=>x.installationRecordId===recordedDevice.installationRecordId).status,'normal');
+
+
 const published=JSON.stringify(directory.data);
 assert.ok(!published.includes('ci-only-secret'));
 assert.ok(!published.includes('ovpnConfig'));
 assert.ok(!published.includes('passwordEncrypted'));
 const disabled=await call('/api/mobile/connect',json({serverId:made.data.id},auth));
 assert.equal(disabled.status,503,'Profile distribution must be off by default');
-console.log('V2 API smoke tests passed: auth, replay protection, public metadata, Yandex rewarded selection without unverified Plus grants, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
+console.log('V2 API smoke tests passed: auth, replay protection, trusted device bandwidth, audited reset and gateway throttle acknowledgement, public metadata, Yandex rewarded selection without unverified Plus grants, ad config persistence behind proxy, CSRF defense, admin CRUD, provisioning gate.');
