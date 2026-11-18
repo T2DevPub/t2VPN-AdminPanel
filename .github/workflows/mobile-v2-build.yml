@@ -12,6 +12,7 @@ on:
       - 'fix/rewarded-unlock-setup-ui-*'
       - 'fix/remove-app-open-cooldown-*'
       - 'feature/device-bandwidth-quota-*'
+      - 'fix/coolify-app-healthcheck-*'
   pull_request:
     branches: [main]
 
