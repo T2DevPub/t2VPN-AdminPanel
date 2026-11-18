@@ -11,6 +11,7 @@ on:
       - 'feature/dashboard-country-today-live-*'
       - 'fix/rewarded-unlock-setup-ui-*'
       - 'fix/remove-app-open-cooldown-*'
+      - 'feature/device-bandwidth-quota-*'
   pull_request:
     branches: [main]
 
@@ -40,6 +41,7 @@ jobs:
       ADMIN_PUBLIC_ORIGIN: https://vpn2.t2dev.in
       VPN_PROFILE_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       MOBILE_PROVISIONING_ENABLED: 'false'
+      TELEMETRY_INGEST_SECRET: 'ci-only-trusted-telemetry-secret-not-for-production-123456'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
