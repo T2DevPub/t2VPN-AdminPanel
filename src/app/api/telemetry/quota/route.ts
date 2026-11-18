@@ -34,7 +34,7 @@ export async function GET(req:Request){
     readQuotaSettings()
   ]);
   if(!installation)return NextResponse.json({error:'Unknown installation'},{status:404,headers:noStore});
-  const decision=quotaDecision(settings,day,row?.bytesMeasured||0n,row?.quotaBaselineBytes||0n,row?.resetAt||null);
+  const decision=quotaDecision(settings,day,row?.bytesMeasured||BigInt(0),row?.quotaBaselineBytes||BigInt(0),row?.resetAt||null);
   return NextResponse.json({
     schemaVersion:1,installationId:id,date:day,timezone:'Asia/Kolkata',
     enforcementEnabled:settings.enforcementEnabled,
@@ -64,7 +64,7 @@ export async function POST(req:Request){
       const settings=await tx.appSetting.findUnique({where:{key:'device_bandwidth_policy_v2'},select:{value:true}});
       const currentPolicy=settings?JSON.parse(settings.value):{enforcementEnabled:false,dailyLimitGiB:2,throttleMbps:3};
       const policy=(await import('@/lib/device-bandwidth')).quotaSettingsSchema.parse(currentPolicy);
-      const expected=quotaDecision(policy,day,row?.bytesMeasured||0n,row?.quotaBaselineBytes||0n,row?.resetAt||null);
+      const expected=quotaDecision(policy,day,row?.bytesMeasured||BigInt(0),row?.quotaBaselineBytes||BigInt(0),row?.resetAt||null);
       if(expected.policyRevision!==policyRevision||expected.targetLimitMbps!==appliedLimitMbps)return 'stale';
       // Only a trusted gateway agent calls this after actually applying the
       // requested network shaping. Android cannot report applied limits.
