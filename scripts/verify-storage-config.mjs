@@ -18,6 +18,14 @@ assert.ok(hasVolume('app','/backups','t2vpn_backups'),'App must write backup arc
 assert.ok(hasVolume('secrets-init','/pgdata','t2vpn_pgdata'),'Volume guard must inspect existing PostgreSQL data');
 assert.ok(hasVolume('secrets-init','/backups','t2vpn_backups'),'Volume guard must read the startup sentinel');
 assert.ok(JSON.stringify(config.services['secrets-init']?.command||'').includes('STORAGE GUARD'),'Missing fail-closed storage protection');
+const appHealth=config.services.app?.healthcheck;
+assert.ok(appHealth,'Application healthcheck must be configured so Coolify can report container health');
+const healthCommand=JSON.stringify(appHealth.test||'');
+assert.ok(healthCommand.includes('node')&&healthCommand.includes('127.0.0.1:3000/api/health'),
+  'Application healthcheck must use Node to query the internal /api/health endpoint');
+assert.ok(Number(appHealth.retries)>=3,'Application healthcheck should allow transient HTTP failures');
+assert.ok(appHealth.start_period,'Application healthcheck needs a startup grace period for the database backup and Prisma initialization');
+
 const startup=readFileSync('scripts/docker-start.sh','utf8');
 const first=startup.indexOf('sh scripts/backup-before-migration.sh');
 const schema=startup.indexOf('npm run db:prepare');
@@ -25,4 +33,4 @@ const push=startup.indexOf('npx prisma db push');
 const seed=startup.indexOf('npm run db:seed');
 assert.ok(first>0&&first<schema&&schema<push&&push<seed,'Backups must complete before any database mutation');
 assert.ok(!startup.includes('--accept-data-loss'),'Dangerous automatic destructive-schema flag detected');
-console.log('Persistent PostgreSQL, secrets, backup mounts and safe startup ordering verified.');
+console.log('Persistent volumes, safe startup order, and internal application healthcheck verified.');
