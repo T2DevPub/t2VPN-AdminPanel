@@ -66,7 +66,9 @@ export default function DeviceBandwidthUsage(){
  },[load]);
  const policyChanged=useMemo(()=>Boolean(policyDraft&&report&&JSON.stringify(policyDraft)!==JSON.stringify(report.policy)),[policyDraft,report]);
  const onFilter=()=>{
-  setError('');setSuccess('');setPage(1);setFilterDate(selectedDate);setFilterStatus(selectedStatus);setLoading(true);
+  setError('');setSuccess('');
+  if(filterDate===selectedDate&&filterStatus===selectedStatus&&page===1){void load();return}
+  setPage(1);setFilterDate(selectedDate);setFilterStatus(selectedStatus);setLoading(true);
  };
  async function savePolicy(){
   if(!policyDraft||!policyChanged)return;
