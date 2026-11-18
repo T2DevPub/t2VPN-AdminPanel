@@ -15,10 +15,10 @@ test('date filtering follows IST calendar boundaries',()=>{
 test('2 GiB quota with measured gateway deltas, reset baseline and idempotent count',()=>{
  const settings={...DEFAULT_QUOTA_SETTINGS,enforcementEnabled:true};
  const limit=quotaBytes(settings);
- assert.equal(limit,2147483648n);
- const measured=limit+1000000n;
- assert.equal(billableBytes(measured,0n),measured);
- const over=quotaDecision(settings,'2026-11-18',measured,0n,null);
+ assert.equal(limit,BigInt(2147483648));
+ const measured=limit+BigInt(1000000);
+ assert.equal(billableBytes(measured,BigInt(0)),measured);
+ const over=quotaDecision(settings,'2026-11-18',measured,BigInt(0),null);
  assert.equal(over.overQuota,true);
  assert.equal(over.targetLimitMbps,3);
  assert.equal(quotaDisplayStatus({
@@ -26,7 +26,7 @@ test('2 GiB quota with measured gateway deltas, reset baseline and idempotent co
  }),'pending');
  const reset=new Date('2026-11-18T05:30:00Z');
  const cleared=quotaDecision(settings,'2026-11-18',measured,measured,reset);
- assert.equal(cleared.effective,0n);
+ assert.equal(cleared.effective,BigInt(0));
  assert.equal(cleared.targetLimitMbps,null);
  assert.notEqual(cleared.policyRevision,over.policyRevision);
  assert.equal(quotaDisplayStatus({
@@ -37,15 +37,15 @@ test('2 GiB quota with measured gateway deltas, reset baseline and idempotent co
   decision:cleared,settings,gatewayAppliedMbps:3,gatewayPolicyRevision:over.policyRevision,
   gatewayReportedAt:new Date('2026-11-18T07:00:00Z'),now:new Date('2026-11-18T07:00:20Z')
  }),'pending','Gateway must acknowledge throttle release after quota reset');
- const after=quotaDecision(settings,'2026-11-18',measured+500n,measured,reset);
- assert.equal(after.effective,500n);
+ const after=quotaDecision(settings,'2026-11-18',measured+BigInt(500),measured,reset);
+ assert.equal(after.effective,BigInt(500));
  assert.equal(quotaDisplayStatus({
   decision:after,settings,gatewayAppliedMbps:null,gatewayPolicyRevision:after.policyRevision,
   gatewayReportedAt:new Date('2026-11-18T07:00:00Z'),now:new Date('2026-11-18T07:00:20Z')
  }),'normal');
 });
 test('monitor-only remains over quota, not falsely marked as throttled',()=>{
- const decision=quotaDecision(DEFAULT_QUOTA_SETTINGS,'2026-11-18',3000000000n,0n,null);
+ const decision=quotaDecision(DEFAULT_QUOTA_SETTINGS,'2026-11-18',BigInt(3000000000),BigInt(0),null);
  assert.equal(decision.overQuota,true);
  assert.equal(decision.targetLimitMbps,null);
  assert.equal(quotaDisplayStatus({
