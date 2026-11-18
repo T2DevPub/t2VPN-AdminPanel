@@ -82,6 +82,7 @@ model AppInstallation {
   lastSeenAt DateTime @default(now())
   sessions VpnUsageSession[]
   events InstallationEvent[]
+  bandwidthDays DeviceBandwidthDay[]
 }
 
 model InstallationEvent {
@@ -139,4 +140,23 @@ model MobileRateLimit {
   key String @id
   windowStart DateTime
   hits Int @default(0)
+}
+
+
+/// Daily gateway-measured byte deltas in IST. Existing session byte counters remain
+/// untouched. A quota reset changes only the accounting baseline, never history.
+model DeviceBandwidthDay {
+  installationId String
+  installation AppInstallation @relation(fields: [installationId], references: [installationId], onDelete: Cascade)
+  day String
+  bytesMeasured BigInt @default(0)
+  quotaBaselineBytes BigInt @default(0)
+  resetAt DateTime?
+  gatewayAppliedMbps Int?
+  gatewayPolicyRevision String?
+  gatewayReportedAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@id([installationId, day])
+  @@index([day, bytesMeasured])
 }
