@@ -168,3 +168,31 @@ Coolify documentation:
 new set of implicitly project-prefixed named Docker volumes. A code change
 cannot automatically recover data from volumes owned by a different resource.
 Never treat an empty new database as an expected redeployment result.
+
+## Next.js app health check (Coolify)
+
+Docker Compose now defines an **app healthcheck** in addition to the
+existing PostgreSQL healthcheck. The app runs a Node.js HTTP probe against
+`http://127.0.0.1:3000/api/health` **inside its own container** every
+30 seconds. A 200 response means Next.js is responding and the existing
+health route can query PostgreSQL; a non-2xx response or failed connection
+fails the probe. Docker allows up to 180 seconds of startup grace for
+schema preparation, backups, and seeding.
+
+Deploy the same V2 Coolify resource from `main` (do not recreate its
+Compose project or volumes). After redeploy, the app should move from
+`Running (no healthcheck)` to `Running (healthy)` **if its health probe
+succeeds**. Database health checks are unchanged. If the app is unhealthy,
+inspect the app runtime logs and run:
+
+```sh
+node -e "fetch('http://127.0.0.1:3000/api/health').then(async r => { console.log(r.status, await r.text()); process.exit(r.ok ? 0 : 1) }).catch(e => { console.error(e.message); process.exit(1) })"
+```
+
+Do not use an external `vpn2.t2dev.in` URL for this container probe:
+the healthcheck must check the local app rather than DNS or Coolify's
+reverse proxy. **Docker health status does not, by itself, restart an
+unhealthy container**; restart/alerting must be configured separately.
+
+The healthcheck has no database schema, volume, secret, admin account,
+VPN profile, or advertising configuration changes.
